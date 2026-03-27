@@ -1,1 +1,64 @@
-an archive of dril posts which can be fuzzy-searched in a browser
+# dril-archive
+
+A searchable archive of [@dril](https://x.com/dril) tweets that runs entirely in your browser. No server required — just static files you can host anywhere.
+
+Type a word, get results instantly. The entire tweet corpus lives in a single SQLite database that loads into your browser via WebAssembly.
+
+## How it works
+
+1. A Rust CLI ingests tweets as NDJSON and builds a SQLite database with a full-text search index (FTS5)
+2. A static web page downloads that database and opens it in-browser using [sql.js](https://github.com/sql-js/sql.js)
+3. Every keystroke fires a prefix-matched FTS5 query — results appear in under 50ms
+
+The whole thing ships as four files: `index.html`, `app.js`, `style.css`, and `dril.db`. Drop them on any static host.
+
+## Building
+
+Requires [Rust](https://rustup.rs/).
+
+```sh
+cargo build --release -p dril-builder
+```
+
+Given a file of tweets in NDJSON format (one JSON object per line):
+
+```sh
+./target/release/dril-builder tweets.ndjson site/dril.db
+```
+
+Then serve `site/` with any HTTP server:
+
+```sh
+python3 -m http.server 8080 --directory site
+```
+
+## Tweet format
+
+Each line of the input NDJSON file should look like:
+
+```json
+{"id":"12345","text":"the tweet text","created_at":"2014-03-12T15:30:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null}
+```
+
+The builder also accepts `-` to read from stdin.
+
+## Development
+
+```sh
+# Run tests
+cargo test
+
+# Build a test database from sample data
+cargo run -p dril-builder -- testdata/sample.ndjson site/dril.db
+
+# Check formatting and lints (requires pre-commit, bun)
+pre-commit run --all-files
+```
+
+## Status
+
+The builder and search frontend are functional. Data acquisition (sourcing the actual tweet archive) is in progress.
+
+## License
+
+TBD
