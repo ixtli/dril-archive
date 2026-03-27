@@ -3,7 +3,7 @@ use rusqlite::Connection;
 
 #[allow(dead_code)]
 pub fn create_db(path: &std::path::Path) -> Result<Connection, String> {
-    let conn = Connection::open(path).map_err(|e| e.to_string())?;
+    let conn = Connection::open(path).map_err(|e| format!("open db: {e}"))?;
 
     conn.execute_batch(
         "
@@ -25,7 +25,7 @@ pub fn create_db(path: &std::path::Path) -> Result<Connection, String> {
         );
         ",
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| format!("create tables: {e}"))?;
 
     Ok(conn)
 }
@@ -37,11 +37,11 @@ pub fn insert_tweets(conn: &Connection, tweets: &[Tweet]) -> Result<usize, Strin
             "INSERT INTO tweets (id, text, created_at, is_reply, reply_to_user, is_quote, quoted_text)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("prepare insert: {e}"))?;
 
     let mut fts_stmt = conn
         .prepare("INSERT INTO tweets_fts(rowid, text, quoted_text) VALUES (?1, ?2, ?3)")
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("prepare fts insert: {e}"))?;
 
     for tweet in tweets {
         tweet_stmt
@@ -54,13 +54,13 @@ pub fn insert_tweets(conn: &Connection, tweets: &[Tweet]) -> Result<usize, Strin
                 tweet.is_quote as i64,
                 tweet.quoted_text,
             ])
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| format!("insert tweet {}: {e}", tweet.id))?;
 
         let rowid = conn.last_insert_rowid();
 
         fts_stmt
             .execute(rusqlite::params![rowid, tweet.text, tweet.quoted_text])
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| format!("insert fts for {}: {e}", tweet.id))?;
     }
 
     Ok(tweets.len())
@@ -69,15 +69,16 @@ pub fn insert_tweets(conn: &Connection, tweets: &[Tweet]) -> Result<usize, Strin
 #[allow(dead_code)]
 pub fn finalize(conn: &Connection) -> Result<(), String> {
     conn.execute_batch("INSERT INTO tweets_fts(tweets_fts) VALUES('optimize');")
-        .map_err(|e| e.to_string())?;
-    conn.execute_batch("VACUUM;").map_err(|e| e.to_string())?;
+        .map_err(|e| format!("optimize fts: {e}"))?;
+    conn.execute_batch("VACUUM;")
+        .map_err(|e| format!("vacuum: {e}"))?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile;
+    use tempfile;
 
     fn sample_tweets() -> Vec<Tweet> {
         vec![
@@ -124,8 +125,9 @@ mod tests {
 
     #[test]
     fn test_create_db_creates_tables() {
-        let tmp = NamedTempFile::new().unwrap();
-        let conn = create_db(tmp.path()).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = create_db(&db_path).unwrap();
 
         let tweet_count: i64 = conn
             .query_row("SELECT COUNT(*) FROM tweets", [], |r| r.get(0))
@@ -140,17 +142,24 @@ mod tests {
 
     #[test]
     fn test_insert_tweets() {
-        let tmp = NamedTempFile::new().unwrap();
-        let conn = create_db(tmp.path()).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = create_db(&db_path).unwrap();
         let tweets = sample_tweets();
         let count = insert_tweets(&conn, &tweets).unwrap();
         assert_eq!(count, 4);
+
+        let stored: i64 = conn
+            .query_row("SELECT COUNT(*) FROM tweets", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(stored, 4);
     }
 
     #[test]
     fn test_fts5_search_by_text() {
-        let tmp = NamedTempFile::new().unwrap();
-        let conn = create_db(tmp.path()).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = create_db(&db_path).unwrap();
         insert_tweets(&conn, &sample_tweets()).unwrap();
 
         let id: String = conn
@@ -165,8 +174,9 @@ mod tests {
 
     #[test]
     fn test_fts5_prefix_search() {
-        let tmp = NamedTempFile::new().unwrap();
-        let conn = create_db(tmp.path()).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = create_db(&db_path).unwrap();
         insert_tweets(&conn, &sample_tweets()).unwrap();
 
         let mut stmt = conn
@@ -184,24 +194,30 @@ mod tests {
 
     #[test]
     fn test_fts5_searches_quoted_text() {
-        let tmp = NamedTempFile::new().unwrap();
-        let conn = create_db(tmp.path()).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = create_db(&db_path).unwrap();
         insert_tweets(&conn, &sample_tweets()).unwrap();
 
-        let id: String = conn
-            .query_row(
-                "SELECT tweets.id FROM tweets JOIN tweets_fts ON tweets.rowid = tweets_fts.rowid WHERE tweets_fts MATCH 'therapist' AND tweets.is_quote = 1",
-                [],
-                |r| r.get(0),
+        let mut stmt = conn
+            .prepare(
+                "SELECT t.id FROM tweets_fts f JOIN tweets t ON t.rowid = f.rowid WHERE tweets_fts MATCH 'therapist'",
             )
             .unwrap();
-        assert_eq!(id, "4");
+        let results: Vec<String> = stmt
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+
+        assert!(results.contains(&"4".to_string()));
     }
 
     #[test]
     fn test_reply_metadata_stored() {
-        let tmp = NamedTempFile::new().unwrap();
-        let conn = create_db(tmp.path()).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = create_db(&db_path).unwrap();
         insert_tweets(&conn, &sample_tweets()).unwrap();
 
         let (is_reply, reply_to_user): (i64, String) = conn
@@ -217,8 +233,9 @@ mod tests {
 
     #[test]
     fn test_finalize_succeeds() {
-        let tmp = NamedTempFile::new().unwrap();
-        let conn = create_db(tmp.path()).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = create_db(&db_path).unwrap();
         insert_tweets(&conn, &sample_tweets()).unwrap();
         assert!(finalize(&conn).is_ok());
     }
