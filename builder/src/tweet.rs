@@ -1,7 +1,6 @@
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, PartialEq)]
-#[allow(dead_code)]
 pub struct Tweet {
     pub id: String,
     pub text: String,
@@ -21,11 +20,12 @@ pub fn parse_ndjson<R: std::io::BufRead>(reader: R) -> Result<Vec<Tweet>, String
 
     for (line_num, line) in reader.lines().enumerate() {
         let line = line.map_err(|e| format!("line {}: {}", line_num + 1, e))?;
-        if line.trim().is_empty() {
+        let line = line.trim();
+        if line.is_empty() {
             continue;
         }
-        let tweet: Tweet = serde_json::from_str(line.trim())
-            .map_err(|e| format!("line {}: {}", line_num + 1, e))?;
+        let tweet: Tweet =
+            serde_json::from_str(line).map_err(|e| format!("line {}: {}", line_num + 1, e))?;
         if seen_ids.insert(tweet.id.clone()) {
             tweets.push(tweet);
         }
