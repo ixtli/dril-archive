@@ -2,7 +2,6 @@
   "use strict";
 
   const DB_URL = "dril.db";
-  // deno-lint-ignore no-unused-vars
   let db = null;
 
   const els = {
@@ -76,6 +75,86 @@
       console.error(err);
     }
   }
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function formatDate(isoString) {
+    const d = new Date(isoString);
+    return d.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  function buildQuery(input) {
+    const terms = input
+      .trim()
+      .split(/\s+/)
+      .filter((t) => t.length > 0)
+      .map((t) => t.replace(/[^\w]/g, ""))
+      .filter((t) => t.length > 0)
+      .map((t) => '"' + t + '"*');
+    return terms.join(" ");
+  }
+
+  function search(input) {
+    const query = buildQuery(input);
+    if (!query) {
+      els.results.innerHTML = "";
+      return;
+    }
+
+    try {
+      const stmt = db.prepare(
+        `SELECT t.id, t.text, t.created_at, t.is_reply, t.reply_to_user
+                 FROM tweets_fts f
+                 JOIN tweets t ON t.rowid = f.rowid
+                 WHERE tweets_fts MATCH ?
+                 ORDER BY rank
+                 LIMIT 50`,
+      );
+      stmt.bind([query]);
+
+      let html = "";
+      while (stmt.step()) {
+        const [id, text, created_at, is_reply, reply_to_user] = stmt.get();
+        const url = `https://x.com/dril/status/${id}`;
+
+        html += `<div class="tweet">`;
+        if (is_reply && reply_to_user) {
+          html += `<div class="tweet-reply-to">replying to @${
+            escapeHtml(reply_to_user)
+          }</div>`;
+        }
+        html += `<div class="tweet-text">${escapeHtml(text)}</div>`;
+        html += `<div class="tweet-meta">`;
+        html += `${
+          formatDate(created_at)
+        } · <a href="${url}" target="_blank" rel="noopener">view on X</a>`;
+        html += `</div></div>`;
+      }
+      stmt.free();
+
+      els.results.innerHTML = html ||
+        `<p style="color:#666;margin-top:20px;">no results</p>`;
+    } catch (err) {
+      console.error("Search error:", err);
+      els.results.innerHTML = "";
+    }
+  }
+
+  let debounceTimer = null;
+  function onInput() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => search(els.searchInput.value), 120);
+  }
+
+  els.searchInput.addEventListener("input", onInput);
 
   init();
 })();
