@@ -1,7 +1,6 @@
 use crate::tweet::Tweet;
 use rusqlite::Connection;
 
-#[allow(dead_code)]
 pub fn create_db(path: &std::path::Path) -> Result<Connection, String> {
     let conn = Connection::open(path).map_err(|e| format!("open db: {e}"))?;
 
@@ -30,7 +29,6 @@ pub fn create_db(path: &std::path::Path) -> Result<Connection, String> {
     Ok(conn)
 }
 
-#[allow(dead_code)]
 pub fn insert_tweets(conn: &Connection, tweets: &[Tweet]) -> Result<usize, String> {
     let mut tweet_stmt = conn
         .prepare(
@@ -66,7 +64,6 @@ pub fn insert_tweets(conn: &Connection, tweets: &[Tweet]) -> Result<usize, Strin
     Ok(tweets.len())
 }
 
-#[allow(dead_code)]
 pub fn finalize(conn: &Connection) -> Result<(), String> {
     conn.execute_batch("INSERT INTO tweets_fts(tweets_fts) VALUES('optimize');")
         .map_err(|e| format!("optimize fts: {e}"))?;

@@ -13,7 +13,6 @@ pub struct Tweet {
 
 /// Parse an NDJSON reader into a Vec of Tweets, deduplicating by ID.
 /// Returns tweets in order of first occurrence.
-#[allow(dead_code)]
 pub fn parse_ndjson<R: std::io::BufRead>(reader: R) -> Result<Vec<Tweet>, String> {
     let mut tweets = Vec::new();
     let mut seen_ids = std::collections::HashSet::new();
