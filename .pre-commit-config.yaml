@@ -1,0 +1,30 @@
+repos:
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt --check
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: cargo clippy -- -D warnings
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: deno-fmt
+        name: deno fmt
+        entry: deno fmt --check
+        language: system
+        types_or: [javascript, html, css]
+        pass_filenames: true
+
+      - id: deno-lint
+        name: deno lint
+        entry: deno lint
+        language: system
+        types: [javascript]
+        pass_filenames: true
