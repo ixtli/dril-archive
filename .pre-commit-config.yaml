@@ -15,16 +15,16 @@ repos:
         types: [rust]
         pass_filenames: false
 
-      - id: deno-fmt
-        name: deno fmt
-        entry: deno fmt --check
+      - id: biome-format
+        name: biome format
+        entry: bunx @biomejs/biome format --html-formatter-enabled=true --css-formatter-enabled=true
         language: system
         types_or: [javascript, html, css]
         pass_filenames: true
 
-      - id: deno-lint
-        name: deno lint
-        entry: deno lint
+      - id: biome-lint
+        name: biome lint
+        entry: bunx @biomejs/biome lint
         language: system
         types: [javascript]
         pass_filenames: true

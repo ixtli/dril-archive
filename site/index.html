@@ -1,37 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>dril archive</title>
-    <link rel="stylesheet" href="style.css">
-  </head>
-  <body>
-    <div id="app">
-      <h1>dril archive</h1>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>dril archive</title>
+		<link rel="stylesheet" href="style.css">
+	</head>
+	<body>
+		<div id="app">
+			<h1>dril archive</h1>
 
-      <div id="loading">
-        <div id="progress-container">
-          <div id="progress-bar"></div>
-        </div>
-        <p id="loading-text">Downloading archive...</p>
-      </div>
+			<div id="loading">
+				<div id="progress-container">
+					<div id="progress-bar"></div>
+				</div>
+				<p id="loading-text">Downloading archive...</p>
+			</div>
 
-      <div id="search-container" class="hidden">
-        <input
-          type="text"
-          id="search-input"
-          placeholder="search dril tweets..."
-          autocomplete="off"
-          autofocus
-        >
-        <div id="results"></div>
-      </div>
-    </div>
+			<div id="search-container" class="hidden">
+				<input
+					type="text"
+					id="search-input"
+					placeholder="search dril tweets..."
+					autocomplete="off"
+				>
+				<div id="results"></div>
+			</div>
+		</div>
 
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.13.0/sql-wasm.js"
-    ></script>
-    <script src="app.js"></script>
-  </body>
+		<script
+			src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.13.0/sql-wasm.js"
+		></script>
+		<script src="app.js"></script>
+	</body>
 </html>
