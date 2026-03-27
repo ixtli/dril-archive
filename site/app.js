@@ -96,13 +96,14 @@
       .trim()
       .split(/\s+/)
       .filter((t) => t.length > 0)
-      .map((t) => t.replace(/[^\w]/g, ""))
+      .map((t) => t.replace(/["*^()]/g, ""))
       .filter((t) => t.length > 0)
       .map((t) => '"' + t + '"*');
     return terms.join(" ");
   }
 
   function search(input) {
+    if (!db) return;
     const query = buildQuery(input);
     if (!query) {
       els.results.innerHTML = "";

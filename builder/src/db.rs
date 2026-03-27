@@ -30,6 +30,9 @@ pub fn create_db(path: &std::path::Path) -> Result<Connection, String> {
 }
 
 pub fn insert_tweets(conn: &Connection, tweets: &[Tweet]) -> Result<usize, String> {
+    conn.execute_batch("BEGIN;")
+        .map_err(|e| format!("begin transaction: {e}"))?;
+
     let mut tweet_stmt = conn
         .prepare(
             "INSERT INTO tweets (id, text, created_at, is_reply, reply_to_user, is_quote, quoted_text)
@@ -60,6 +63,9 @@ pub fn insert_tweets(conn: &Connection, tweets: &[Tweet]) -> Result<usize, Strin
             .execute(rusqlite::params![rowid, tweet.text, tweet.quoted_text])
             .map_err(|e| format!("insert fts for {}: {e}", tweet.id))?;
     }
+
+    conn.execute_batch("COMMIT;")
+        .map_err(|e| format!("commit transaction: {e}"))?;
 
     Ok(tweets.len())
 }
