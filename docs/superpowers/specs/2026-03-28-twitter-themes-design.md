@@ -41,13 +41,46 @@ https://web.archive.org/cdx/search/cdx?url=twitter.com/dril/status/*&output=json
 https://web.archive.org/cdx/search/cdx?url=twitter.com/dril&output=json&fl=timestamp,original,statuscode&filter=statuscode:200&collapse=timestamp:6
 ```
 
-### Target Snapshots
+### Target Snapshots — Intentional Sampling from the Archive
 
-Select 2-3 snapshots per era from the CDX results, targeting:
-- One early in the era (shortly after redesign)
-- One late in the era (mature version before next redesign)
+Rather than picking random tweets, we use the existing archive data (posts, reposts, media tables) to identify specific post IDs that cover every distinct rendering mode Twitter used. Each era needs samples of every content type:
 
-~8-12 total page loads. Cache everything locally.
+| Content Type | Source Table | Selection Criteria |
+|-------------|-------------|-------------------|
+| Plain text tweet | `posts` | `is_reply = 0 AND is_quote = 0`, no media row |
+| Reply | `posts` | `is_reply = 1` |
+| Quote tweet | `posts` | `is_quote = 1` |
+| Tweet with photo | `posts` + `media` | `media.type = 'photo'` |
+| Tweet with video | `posts` + `media` | `media.type = 'video'` |
+| Retweet | `reposts` | Any repost row |
+
+**Sampling script** (`theme-extractor/src/select-samples.ts`):
+
+1. Build or load the SQLite database
+2. For each era (by `created_at` date range), query for candidate post IDs of each content type
+3. For each candidate, check the CDX API to see if the Wayback Machine has a snapshot of `twitter.com/dril/status/{id}`
+4. Pick the first available hit per content type per era
+5. Output `theme-extractor/data/sample-manifest.json`:
+
+```json
+{
+  "classic": {
+    "plain": { "post_id": "12345", "wayback_timestamp": "20090815123456", "created_at": "2009-08-15T..." },
+    "reply": { "post_id": "12346", "wayback_timestamp": "20091201...", "created_at": "..." },
+    "quote": null,
+    "photo": { "post_id": "12350", "wayback_timestamp": "...", "created_at": "..." },
+    "video": null,
+    "retweet": { "post_id": "12360", "wayback_timestamp": "...", "created_at": "..." }
+  },
+  "new": { ... },
+  "material": { ... },
+  "modern": { ... }
+}
+```
+
+Some combinations will legitimately not exist (quote tweets didn't exist in the Classic era, video embeds came later). `null` entries are expected and documented.
+
+This gives us ~16-24 targeted page loads (4 eras × 4-6 content types) instead of random sampling, and guarantees we capture the DOM/CSS for every rendering variant.
 
 ### Extraction Tool (`theme-extractor/`)
 
@@ -87,16 +120,16 @@ Uses Playwright to:
 
 ### Extracted Data Format
 
-Each snapshot produces a raw archive file:
+Each snapshot produces a raw archive file, organized by era and content type:
 
 ```
 theme-extractor/data/wayback/
   {era}/
-    {timestamp}/
-      dom.html          # innerHTML of the tweet container
-      styles.json       # computed styles per element selector
-      screenshot.png    # visual reference
-      metadata.json     # wayback URL, timestamp, extraction date
+    {content_type}/       # plain, reply, quote, photo, video, retweet
+      dom.html            # innerHTML of the tweet container
+      styles.json         # computed styles per element selector
+      screenshot.png      # visual reference
+      metadata.json       # wayback URL, timestamp, post ID, content type
 ```
 
 The raw DOM and computed styles are the archival artifact. Theme CSS files derived from this data are a separate build step.

@@ -29,6 +29,7 @@ theme-extractor/
 ```json
 {
   "scripts": {
+    "select": "tsx src/select-samples.ts",
     "discover": "tsx src/cdx-discover.ts",
     "extract:themes": "tsx src/extract-themes.ts",
     "extract:profiles": "tsx src/extract-profiles.ts",
@@ -39,36 +40,76 @@ theme-extractor/
 
 Add `theme-extractor/data/` to the repo root `.gitignore`.
 
-### 1.1 CDX Discovery Script
+### 1.1 Sample Selection Script
+
+**File:** `theme-extractor/src/select-samples.ts`
+
+Uses the existing archive database to identify specific post IDs that cover every content type in every era:
+
+1. Open the built SQLite database (`site/dril.db` or accept a path argument)
+2. For each era (date range), query for candidate post IDs:
+   - **Plain text**: `SELECT id FROM posts WHERE is_reply=0 AND is_quote=0 AND id NOT IN (SELECT post_id FROM media) AND created_at BETWEEN ? AND ? LIMIT 10`
+   - **Reply**: `SELECT id FROM posts WHERE is_reply=1 AND created_at BETWEEN ? AND ? LIMIT 10`
+   - **Quote tweet**: `SELECT id FROM posts WHERE is_quote=1 AND created_at BETWEEN ? AND ? LIMIT 10`
+   - **Photo**: `SELECT p.id FROM posts p JOIN media m ON p.id=m.post_id WHERE m.type='photo' AND p.created_at BETWEEN ? AND ? LIMIT 10`
+   - **Video**: `SELECT p.id FROM posts p JOIN media m ON p.id=m.post_id WHERE m.type='video' AND p.created_at BETWEEN ? AND ? LIMIT 10`
+   - **Retweet**: `SELECT id FROM reposts WHERE created_at BETWEEN ? AND ? LIMIT 10`
+3. Output `theme-extractor/data/candidates.json` — multiple candidates per slot so the next step has fallbacks
+
+Returns 10 candidates per type per era (some will be `null` — quote tweets didn't exist in Classic era, etc.).
+
+### 1.2 CDX Discovery Script
 
 **File:** `theme-extractor/src/cdx-discover.ts`
 
-Query the Wayback Machine CDX API to find usable snapshots:
+Takes the candidates from `data/candidates.json` and checks which ones the Wayback Machine actually has:
 
-- Tweet pages: `twitter.com/dril/status/*` — need ~2-3 per era for DOM/CSS extraction
-- Profile pages: `twitter.com/dril` — need ~1-2 per year for profile metadata
-- Filter by `statuscode:200`, collapse by `timestamp:4` (yearly) or `timestamp:6` (monthly)
-- Output a curated `theme-extractor/data/snapshots.json` listing the selected URLs and timestamps
-- Use `fetch()` with 5s delay between CDX API calls
+1. For each candidate post ID, query CDX API: `https://web.archive.org/cdx/search/cdx?url=twitter.com/dril/status/{id}&output=json&fl=timestamp,statuscode&filter=statuscode:200&limit=5`
+2. Pick the best snapshot (closest to the post's `created_at` for maximum era-authenticity)
+3. Walk through candidates in order until a CDX hit is found for each content type
+4. Also query for profile page snapshots: `twitter.com/dril` — 1-2 per year
+5. Output `theme-extractor/data/sample-manifest.json`:
 
-Human review step: manually inspect `snapshots.json` and prune to the best candidates.
+```json
+{
+  "classic": {
+    "plain": { "post_id": "12345", "wayback_timestamp": "20090815123456", "created_at": "..." },
+    "reply": { "post_id": "12346", "wayback_timestamp": "20091201...", "created_at": "..." },
+    "quote": null,
+    "photo": null,
+    "video": null,
+    "retweet": { "post_id": "12360", "wayback_timestamp": "...", "created_at": "..." }
+  },
+  "new": { "...": "..." },
+  "material": { "...": "..." },
+  "modern": { "...": "..." },
+  "profiles": [
+    { "wayback_timestamp": "20090301...", "url": "twitter.com/dril" },
+    { "wayback_timestamp": "20110815...", "url": "twitter.com/dril" }
+  ]
+}
+```
 
-### 1.2 Theme Extraction Script
+Human review step: inspect `sample-manifest.json`, optionally override entries with hand-picked IDs.
+
+**Rate limiting:** 5-second delay between CDX API calls. ~60-100 lookups total (10 candidates × 6 types × ~partial coverage).
+
+### 1.3 Theme Extraction Script
 
 **File:** `theme-extractor/src/extract-themes.ts`
 
-For each selected tweet-page snapshot:
+Reads `data/sample-manifest.json` and extracts DOM/CSS for each non-null entry:
 
 1. Launch Playwright headless Chromium
-2. Navigate to `https://web.archive.org/web/{timestamp}/https://twitter.com/dril/status/{id}`
-3. Wait for the tweet container to render (wait for known selectors: `.tweet`, `.css-1dbjc4n`, `[data-testid="tweet"]` depending on era)
+2. For each entry in the manifest, navigate to `https://web.archive.org/web/{wayback_timestamp}/https://twitter.com/dril/status/{post_id}`
+3. Wait for the tweet container to render (wait for known selectors depending on era)
 4. Extract:
    - `document.querySelector(tweetSelector).innerHTML` → `dom.html`
    - For each significant child element, call `getComputedStyle()` and record all properties → `styles.json`
    - `page.screenshot({ clip: tweetBoundingBox })` → `screenshot.png`
-   - Metadata (URL, timestamp, selectors used) → `metadata.json`
+   - Metadata (URL, timestamp, post ID, content type, selectors used) → `metadata.json`
 5. 10-second delay before next snapshot
-6. Write all output to `theme-extractor/data/wayback/{era}/{timestamp}/`
+6. Write all output to `theme-extractor/data/wayback/{era}/{content_type}/`
 
 **Key selectors by era:**
 | Era | Tweet container selector |
@@ -78,7 +119,7 @@ For each selected tweet-page snapshot:
 | Material | `.tweet`, `.js-actionable-tweet` |
 | Modern | `[data-testid="tweet"]`, `article[role="article"]` |
 
-### 1.3 Profile Extraction Script
+### 1.4 Profile Extraction Script
 
 **File:** `theme-extractor/src/extract-profiles.ts`
 
@@ -276,9 +317,10 @@ The extraction tooling (Playwright, tsx) is **not** needed in CI. All extraction
 |------|--------|-------|
 | `theme-extractor/package.json` | Create | 1.0 |
 | `theme-extractor/tsconfig.json` | Create | 1.0 |
-| `theme-extractor/src/cdx-discover.ts` | Create | 1.1 |
-| `theme-extractor/src/extract-themes.ts` | Create | 1.2 |
-| `theme-extractor/src/extract-profiles.ts` | Create | 1.3 |
+| `theme-extractor/src/select-samples.ts` | Create | 1.1 |
+| `theme-extractor/src/cdx-discover.ts` | Create | 1.2 |
+| `theme-extractor/src/extract-themes.ts` | Create | 1.3 |
+| `theme-extractor/src/extract-profiles.ts` | Create | 1.4 |
 | `theme-extractor/data/` | Populate (gitignored) | 1 |
 | `theme-extractor/src/build-themes.ts` | Create | 2.1 |
 | `theme-extractor/output/themes/*.css` | Create (generated, checked in) | 2.1 |
