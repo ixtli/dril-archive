@@ -4,6 +4,7 @@
 	import { debouncedSearch } from "./lib/search";
 	import LoadingBar from "./components/LoadingBar.svelte";
 	import SearchBar from "./components/SearchBar.svelte";
+	import PostCard from "./components/PostCard.svelte";
 
 	let loading = $state(true);
 	let loadError = $state<string | null>(null);
@@ -15,6 +16,7 @@
 	let sort = $state<SortOption>("relevance");
 	let filters = $state<FilterState>({ platform: "all", type: "all" });
 	let controlsOpen = $state(false);
+	let themeOverride = $state<import("./lib/types").ThemeId | "auto">("auto");
 
 	async function init() {
 		try {
@@ -65,19 +67,7 @@
 				<p class="no-results">no results</p>
 			{/if}
 			{#each results as post (post.id)}
-				<div class="post" data-testid="post-card">
-					{#if post.is_reply && post.reply_to_user}
-						<div class="post-reply-to">replying to @{post.reply_to_user}</div>
-					{/if}
-					<div class="post-text">{post.text}</div>
-					<div class="post-meta">
-						{new Date(post.created_at).toLocaleDateString("en-US", {
-							year: "numeric",
-							month: "short",
-							day: "numeric",
-						})} &middot; {post.platform}
-					</div>
-				</div>
+				<PostCard {post} {themeOverride} />
 			{/each}
 		</div>
 	{/if}
@@ -103,28 +93,5 @@
 	.no-results {
 		color: #666;
 		margin-top: 20px;
-	}
-
-	.post {
-		padding: 14px 0;
-		border-bottom: 1px solid #2a2a2a;
-	}
-
-	.post-text {
-		font-size: 0.95rem;
-		line-height: 1.5;
-		white-space: pre-wrap;
-	}
-
-	.post-meta {
-		margin-top: 6px;
-		font-size: 0.75rem;
-		color: #666;
-	}
-
-	.post-reply-to {
-		font-size: 0.75rem;
-		color: #555;
-		margin-bottom: 4px;
 	}
 </style>
