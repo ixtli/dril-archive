@@ -77,4 +77,15 @@
 	.controls-toggle:hover {
 		color: #e0e0e0;
 	}
+
+	@media (max-width: 639px) {
+		.search-input {
+			padding: 10px 12px;
+			font-size: 1rem;
+		}
+
+		.controls-toggle {
+			padding: 8px;
+		}
+	}
 </style>

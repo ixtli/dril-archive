@@ -160,4 +160,12 @@
 		display: flex;
 		gap: 12px;
 	}
+
+	@media (max-width: 639px) {
+		.meta,
+		.separator,
+		.engagement {
+			font-size: 10px;
+		}
+	}
 </style>

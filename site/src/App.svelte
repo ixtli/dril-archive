@@ -124,21 +124,36 @@
 	main {
 		max-width: 700px;
 		margin: 0 auto;
-		padding: 20px;
+		padding: 16px;
 	}
 
 	h1 {
-		font-size: 1.4rem;
-		margin-bottom: 20px;
+		font-size: 1.2rem;
+		margin-bottom: 16px;
 		color: #888;
 	}
 
 	.results {
-		margin-top: 16px;
+		margin-top: 12px;
 	}
 
 	.no-results {
 		color: #666;
 		margin-top: 20px;
+	}
+
+	@media (min-width: 640px) {
+		main {
+			padding: 20px;
+		}
+
+		h1 {
+			font-size: 1.4rem;
+			margin-bottom: 20px;
+		}
+
+		.results {
+			margin-top: 16px;
+		}
 	}
 </style>

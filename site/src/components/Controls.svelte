@@ -147,4 +147,15 @@
 	select:focus {
 		border-color: #4a9eff;
 	}
+
+	@media (max-width: 639px) {
+		.controls {
+			padding: 10px 12px;
+			gap: 8px;
+		}
+
+		.control-group {
+			min-width: 100%;
+		}
+	}
 </style>

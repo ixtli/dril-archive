@@ -150,4 +150,12 @@
 	.view-link:hover {
 		text-decoration: underline;
 	}
+
+	@media (max-width: 639px) {
+		.meta,
+		.timestamp,
+		.engagement {
+			font-size: 13px;
+		}
+	}
 </style>
