@@ -37,14 +37,23 @@
 - `site/src/templates/TwitterModern.svelte` — 2019-2023 era card
 - `site/src/templates/Bluesky.svelte` — Bluesky platform card
 - `site/src/templates/Threads.svelte` — Threads platform card
+- `site/src/styles/twitter-classic.css` — Classic era theme variables (from theme-extractor)
+- `site/src/styles/twitter-new.css` — New era theme variables (from theme-extractor)
+- `site/src/styles/twitter-material.css` — Material era theme variables (from theme-extractor)
+- `site/src/styles/twitter-modern.css` — Modern era theme variables (from theme-extractor)
+- `site/src/styles/bluesky.css` — Bluesky theme variables (placeholder)
+- `site/src/styles/threads.css` — Threads theme variables (placeholder)
+- `site/src/styles/global.css` — Dark theme shell variables
 
 **Modify:**
 - `.pre-commit-config.yaml` — Add prettier/eslint/svelte-check hooks, scope biome to exclude `site/src/`
 - `package.json` — Update root scripts for Vite dev/build
 - `scripts/dev.ts` — Update to run Vite dev server instead of Bun.serve
-- `playwright.config.ts` — Point at Vite preview server
-- `e2e/search.spec.ts` — Adapt selectors + add 8 new tests
+- `playwright.config.ts` — Point at Vite dev server
+- `e2e/search.spec.ts` — Adapt selectors + add new display layer tests
 - `CLAUDE.md` — Update to reflect Svelte stack
+- `README.md` — Document Svelte + Vite stack, dual formatter boundary, updated commands
+- `.github/workflows/deploy.yml` — Build Svelte app and deploy `site/dist/`
 
 **Delete (Task 12):**
 - `site/app.js` — replaced by Svelte app
@@ -300,10 +309,12 @@ git commit -m "feat(site): scaffold Svelte 5 + Vite project"
 
 Run:
 ```bash
-cd site && bun add -d prettier prettier-plugin-svelte eslint eslint-plugin-svelte @typescript-eslint/parser @typescript-eslint/eslint-plugin
+cd site && bun add -d prettier prettier-plugin-svelte "eslint@^8" eslint-plugin-svelte @typescript-eslint/parser @typescript-eslint/eslint-plugin
 ```
 
 Expected: packages added to `site/package.json` devDependencies.
+
+Note: ESLint is pinned to v8 (`"eslint@^8"`) because `.eslintrc.cjs` uses the v8 config format. ESLint v9 requires a flat config (`eslint.config.js`), which is incompatible with `.eslintrc.cjs`.
 
 - [ ] **Step 2: Create `site/.prettierrc`**
 
@@ -478,6 +489,107 @@ Expected: All hooks pass. If prettier reformats files, fix them and re-run.
 git add site/.prettierrc site/.eslintrc.cjs site/package.json site/bun.lock .pre-commit-config.yaml
 git commit -m "chore(site): add prettier, eslint, svelte-check configs and update pre-commit hooks"
 ```
+
+---
+
+### Task 2b: Extract Theme CSS Files
+
+**Files:**
+- Create: `site/src/styles/twitter-classic.css`
+- Create: `site/src/styles/twitter-new.css`
+- Create: `site/src/styles/twitter-material.css`
+- Create: `site/src/styles/twitter-modern.css`
+- Create: `site/src/styles/bluesky.css`
+- Create: `site/src/styles/threads.css`
+- Create: `site/src/styles/global.css`
+
+The spec requires template components to import from `site/src/styles/*.css` files rather than inlining all CSS in `<style>` blocks. The 4 Twitter era CSS files are copied from `theme-extractor/output/themes/` and define CSS custom properties (variables) for each era. Bluesky and Threads get placeholder files. `global.css` holds the dark theme shell variables.
+
+- [ ] **Step 1: Create `site/src/styles/` directory**
+
+```bash
+mkdir -p site/src/styles
+```
+
+- [ ] **Step 2: Copy the 4 Twitter era CSS files from theme-extractor output**
+
+```bash
+cp theme-extractor/output/themes/twitter-classic.css site/src/styles/twitter-classic.css
+cp theme-extractor/output/themes/twitter-new.css site/src/styles/twitter-new.css
+cp theme-extractor/output/themes/twitter-material.css site/src/styles/twitter-material.css
+cp theme-extractor/output/themes/twitter-modern.css site/src/styles/twitter-modern.css
+```
+
+- [ ] **Step 3: Create `site/src/styles/bluesky.css` placeholder**
+
+Create `site/src/styles/bluesky.css`:
+
+```css
+/* Bluesky theme variables — placeholder derived from current Bluesky web design */
+:root {
+  --card-bg: #fff;
+  --card-border: 1px solid #e4e6eb;
+  --card-border-radius: 12px;
+  --card-padding: 14px 16px;
+  --text-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --text-size: 15px;
+  --text-color: #1a1a1a;
+  --meta-color: #8a8a8a;
+  --meta-size: 13px;
+  --link-color: #0085ff;
+  --avatar-size: 42px;
+  --avatar-radius: 50%;
+}
+```
+
+- [ ] **Step 4: Create `site/src/styles/threads.css` placeholder**
+
+Create `site/src/styles/threads.css`:
+
+```css
+/* Threads theme variables — placeholder derived from current Threads web design */
+:root {
+  --card-bg: #fff;
+  --card-border: none;
+  --card-border-bottom: 1px solid #e0e0e0;
+  --card-border-radius: 0;
+  --card-padding: 16px;
+  --text-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --text-size: 15px;
+  --text-color: #000;
+  --meta-color: #999;
+  --meta-size: 14px;
+  --link-color: #000;
+  --avatar-size: 40px;
+  --avatar-radius: 50%;
+}
+```
+
+- [ ] **Step 5: Create `site/src/styles/global.css`**
+
+Create `site/src/styles/global.css`:
+
+```css
+/* Global dark theme shell — wraps the light-themed post cards */
+:root {
+  --shell-bg: #1a1a1a;
+  --shell-text: #e0e0e0;
+  --shell-muted: #888;
+  --shell-border: #333;
+  --shell-input-bg: #2a2a2a;
+  --shell-input-border: #444;
+  --shell-accent: #4a9eff;
+}
+```
+
+- [ ] **Step 6: Commit theme CSS files**
+
+```bash
+git add site/src/styles/
+git commit -m "feat(site): add theme CSS files (copied from theme-extractor + placeholders)"
+```
+
+> **Important for Tasks 5 and 6:** Template components should import their corresponding CSS file from `site/src/styles/` and reference the CSS custom properties defined there, rather than hardcoding color/font values in the `<style>` block. For example, in `TwitterClassic.svelte`, add `@import '../styles/twitter-classic.css';` at the top of the `<style>` block, then use `var(--card-bg)`, `var(--text-font)`, etc. in the CSS rules. The `<style>` blocks should contain layout rules and reference the CSS variables for theme-specific values (colors, fonts, sizes). This keeps the theme definitions in one place and allows future theme customization without editing Svelte components.
 
 ---
 
@@ -3077,6 +3189,20 @@ Add a `@media` query to the existing `<style>` block in Controls.svelte. Append 
 
 This makes controls stack vertically on mobile (each select takes full width).
 
+- [ ] **Step 4b: Add responsive typography to template components**
+
+Each template component (`TwitterClassic.svelte`, `TwitterNew.svelte`, `TwitterMaterial.svelte`, `TwitterModern.svelte`, `Bluesky.svelte`, `Threads.svelte`) should include a `@media (max-width: 639px)` rule that reduces meta/timestamp font sizes by 1-2px on mobile viewports. For example, append to each template's `<style>` block:
+
+```css
+  @media (max-width: 639px) {
+    .meta, .timestamp, .separator, .engagement {
+      font-size: calc(var(--meta-size, 13px) - 1px);
+    }
+  }
+```
+
+Adjust the selector names to match each template's actual class names. This prevents metadata text from feeling oversized on small screens.
+
 - [ ] **Step 5: Verify build**
 
 Run:
@@ -3101,39 +3227,9 @@ git commit -m "feat(site): add responsive CSS with mobile-first layout"
 - Modify: `e2e/search.spec.ts`
 - Modify: `playwright.config.ts`
 
-- [ ] **Step 1: Update `playwright.config.ts`**
+Note: `playwright.config.ts` is written once in Task 10 (Step 4) with the final Vite dev server configuration. Do not write it here — Task 10 handles the definitive version.
 
-Replace the entire contents of `playwright.config.ts`:
-
-```typescript
-import { defineConfig } from "@playwright/test";
-
-export default defineConfig({
-  testDir: "./e2e",
-  timeout: 30_000,
-  expect: {
-    timeout: 10_000,
-  },
-  use: {
-    baseURL: "http://localhost:4173",
-  },
-  projects: [
-    {
-      name: "chromium",
-      use: { browserName: "chromium" },
-    },
-  ],
-  webServer: {
-    command: "bun run dev",
-    port: 4173,
-    reuseExistingServer: !process.env.CI,
-  },
-});
-```
-
-Note: The webServer command still uses `bun run dev` from the root `package.json` which will be updated in Task 10 to run Vite preview. The port changes to 4173 (Vite preview default).
-
-- [ ] **Step 2: Replace `e2e/search.spec.ts` with adapted + new tests**
+- [ ] **Step 1: Replace `e2e/search.spec.ts` with adapted + new tests**
 
 Replace the entire contents of `e2e/search.spec.ts`:
 
@@ -3380,12 +3476,53 @@ test.describe("dril archive search", () => {
     const controlsPanel = page.locator('[data-testid="controls-panel"]');
     await expect(controlsPanel).toBeVisible();
   });
+
+  test("filter by platform - X filter excludes Bluesky posts", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const searchInput = page.locator('[data-testid="search-input"]');
+    await expect(searchInput).toBeVisible({ timeout: 15_000 });
+
+    // Search for a broad term that includes the Bluesky test post
+    await searchInput.fill("hello");
+
+    const results = page.locator('[data-testid="results"]');
+    await expect(
+      results.locator('[data-testid="post-card"]'),
+    ).not.toHaveCount(0, { timeout: 5_000 });
+
+    // Open controls and filter to X only
+    const toggleButton = page.locator('[data-testid="controls-toggle"]');
+    await toggleButton.click();
+
+    const platformSelect = page.locator('[data-testid="platform-select"]');
+    await platformSelect.selectOption("x");
+
+    // Wait for results to update
+    await page.waitForTimeout(300);
+
+    // Verify no Bluesky cards remain
+    const cards = results.locator('[data-testid="post-card"]');
+    const count = await cards.count();
+    for (let i = 0; i < count; i++) {
+      await expect(cards.nth(i)).not.toHaveAttribute("data-theme", "bsky");
+    }
+  });
 });
 ```
 
-Note: The spec calls for test 8 (platform template for Bluesky) and test 11 (filter by platform). The sample test data (`testdata/sample.ndjson`) does not include any Bluesky or Threads posts (all 10 posts have no `platform` field, defaulting to X/Twitter). These tests are omitted because they would fail with the current test fixture. They can be added when the test fixture is expanded with multi-platform posts.
+Note: The spec calls for test 8 (platform template for Bluesky). The sample test data (`testdata/sample.ndjson`) currently has no Bluesky or Threads posts. Test 8 can be added when the test fixture is expanded with multi-platform posts.
 
-- [ ] **Step 3: Verify E2E test file has no syntax errors**
+**Test fixture update for platform filter test:** Before running tests, add a Bluesky post to `testdata/sample.ndjson` so the platform filter test (below) has multi-platform data. Append a line like:
+
+```json
+{"id":"bsky-1","text":"hello from bluesky","created_at":"2024-12-01T12:00:00.000Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null,"likes":42,"shares":5,"platform":"bsky"}
+```
+
+Then rebuild the test DB (`bun run build:testdb`).
+
+- [ ] **Step 2: Verify E2E test file has no syntax errors**
 
 Run:
 ```bash
@@ -3394,11 +3531,11 @@ cd /home/ixtli/Public/project/dril-archive && bunx tsc --noEmit --strict e2e/sea
 
 This is a quick syntax check only. Full E2E execution happens after Task 10 when the dev/preview server is wired up.
 
-- [ ] **Step 4: Commit E2E tests**
+- [ ] **Step 3: Commit E2E tests**
 
 ```bash
-git add e2e/search.spec.ts playwright.config.ts
-git commit -m "test(e2e): adapt existing tests and add 8 new display layer tests"
+git add e2e/search.spec.ts
+git commit -m "test(e2e): adapt existing tests and add new display layer tests"
 ```
 
 ---
@@ -3563,13 +3700,30 @@ Run:
 bun run test:e2e
 ```
 
-Expected: All 13 tests pass. If any fail, debug and fix the specific test or component.
+Expected: All 14 tests pass. If any fail, debug and fix the specific test or component.
 
-- [ ] **Step 7: Commit build/deploy updates**
+- [ ] **Step 7: Update `.github/workflows/deploy.yml` for Vite build**
+
+Update the deploy workflow to build the Svelte app and deploy `site/dist/` instead of `site/`. The build steps should:
+
+1. Install site dependencies: `cd site && bun install`
+2. Build the Svelte app: `cd site && bun run build`
+3. Copy `dril.db` into `site/dist/`: `cp dril.db site/dist/dril.db` (adjust source path based on how the production DB is produced)
+4. Copy SQLite WASM files into `site/dist/sqlite3/`:
+   ```bash
+   mkdir -p site/dist/sqlite3
+   cp site/node_modules/@sqlite.org/sqlite-wasm/dist/index.mjs site/dist/sqlite3/index.mjs
+   cp site/node_modules/@sqlite.org/sqlite-wasm/dist/sqlite3.wasm site/dist/sqlite3/sqlite3.wasm
+   ```
+5. Deploy `site/dist/` as the publish directory (instead of `site/`)
+
+Review the existing workflow file and adapt accordingly. The deploy target directory changes from `site/` to `site/dist/`.
+
+- [ ] **Step 8: Commit build/deploy updates**
 
 ```bash
-git add package.json scripts/dev.ts playwright.config.ts .gitignore
-git commit -m "chore: update build scripts, dev server, and playwright config for Vite"
+git add package.json scripts/dev.ts playwright.config.ts .gitignore .github/workflows/deploy.yml
+git commit -m "chore: update build scripts, dev server, deploy workflow, and playwright config for Vite"
 ```
 
 ---
@@ -3578,6 +3732,7 @@ git commit -m "chore: update build scripts, dev server, and playwright config fo
 
 **Files:**
 - Modify: `CLAUDE.md`
+- Modify: `README.md`
 
 - [ ] **Step 1: Update `CLAUDE.md` architecture section**
 
@@ -3657,7 +3812,7 @@ Replace the `## Testing` section content with:
 ```sh
 cargo test -p dril-builder     # 18 Rust tests (7 post parser + 11 db)
 cargo test -p dril-normalizer  # 9 normalizer tests
-bun run test:e2e               # 13 E2E browser tests (Playwright)
+bun run test:e2e               # 14 E2E browser tests (Playwright)
 ```
 
 - [ ] **Step 5: Update `CLAUDE.md` Code Quality section**
@@ -3719,11 +3874,26 @@ Remove this line (now implemented):
 - **Twitter era themes** in the frontend (extraction tooling is built, frontend integration is pending)
 ```
 
-- [ ] **Step 10: Commit documentation updates**
+- [ ] **Step 10: Update `README.md`**
+
+Update `README.md` to document:
+
+1. **Tech stack change**: The frontend is now Svelte 5 + Vite (not vanilla HTML/JS/CSS). Mention TypeScript and scoped CSS.
+2. **Dual formatter boundary**: Prettier + eslint own `site/src/` (Svelte support), Biome owns everything else (`scripts/`, `e2e/`, root JS/TS). No file is touched by both.
+3. **Updated dev commands**:
+   - `bun run dev` — starts Vite dev server (builds test DB + copies WASM automatically)
+   - `cd site && bun run build` — production build to `site/dist/`
+   - `bun run test:e2e` — runs Playwright E2E tests
+   - `cargo test` — runs Rust unit tests
+4. **Updated build commands**:
+   - `cd site && bun install` — install frontend dependencies
+   - `cd site && bun run build` — production build
+
+- [ ] **Step 11: Commit documentation updates**
 
 ```bash
-git add CLAUDE.md
-git commit -m "docs: update CLAUDE.md for Svelte 5 + Vite frontend rewrite"
+git add CLAUDE.md README.md
+git commit -m "docs: update CLAUDE.md and README.md for Svelte 5 + Vite frontend rewrite"
 ```
 
 ---
@@ -3768,7 +3938,7 @@ Expected: "OK: references main.ts" and "OK: no app.js reference".
 bun run test:e2e
 ```
 
-Expected: All 13 tests pass.
+Expected: All 14 tests pass.
 
 - [ ] **Step 5: Commit migration cleanup**
 
