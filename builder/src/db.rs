@@ -101,7 +101,6 @@ pub fn insert_posts(conn: &Connection, posts: &[Post]) -> Result<usize, String> 
     Ok(posts.len())
 }
 
-#[allow(dead_code)]
 pub fn insert_reposts(conn: &Connection, reposts: &[dril_types::Repost]) -> Result<usize, String> {
     conn.execute_batch("BEGIN;")
         .map_err(|e| format!("begin transaction: {e}"))?;
@@ -132,7 +131,6 @@ pub fn insert_reposts(conn: &Connection, reposts: &[dril_types::Repost]) -> Resu
     Ok(reposts.len())
 }
 
-#[allow(dead_code)]
 pub fn insert_media(conn: &Connection, media: &[dril_types::MediaItem]) -> Result<usize, String> {
     conn.execute_batch("BEGIN;")
         .map_err(|e| format!("begin transaction: {e}"))?;
@@ -161,7 +159,6 @@ pub fn insert_media(conn: &Connection, media: &[dril_types::MediaItem]) -> Resul
     Ok(media.len())
 }
 
-#[allow(dead_code)]
 pub fn insert_users(conn: &Connection, users: &[dril_types::User]) -> Result<usize, String> {
     conn.execute_batch("BEGIN;")
         .map_err(|e| format!("begin transaction: {e}"))?;

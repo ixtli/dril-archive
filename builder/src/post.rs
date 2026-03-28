@@ -35,6 +35,25 @@ pub fn parse_ndjson<R: std::io::BufRead>(reader: R) -> Result<Vec<Post>, String>
     Ok(posts)
 }
 
+pub fn parse_ndjson_generic<T: serde::de::DeserializeOwned, R: std::io::BufRead>(
+    reader: R,
+) -> Result<Vec<T>, String> {
+    let mut items = Vec::new();
+
+    for (line_num, line) in reader.lines().enumerate() {
+        let line = line.map_err(|e| format!("line {}: {}", line_num + 1, e))?;
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let item: T =
+            serde_json::from_str(line).map_err(|e| format!("line {}: {}", line_num + 1, e))?;
+        items.push(item);
+    }
+
+    Ok(items)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
