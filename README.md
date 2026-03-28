@@ -53,6 +53,22 @@ bun run test:e2e
 pre-commit run --all-files
 ```
 
+## Data sources
+
+| Source | Platform | Period | Posts | Notes |
+|--------|----------|--------|-------|-------|
+| [codemasher/dril-archive](https://github.com/codemasher/dril-archive) | X | 2008-09 to 2023-04 | ~11,075 | Complete archive including reposts, media, quote tweets |
+| Manual scrape (search) | X | 2023-01 to 2024-04 | ~552 | See caveats below |
+| Manual scrape (profile) | X | 2024-04 to 2026-03 | ~676 | Includes reposts |
+| Bluesky API sync | Bluesky | 2023-04 to present | ~507 | Auto-synced daily |
+
+### Caveats for the 2023-2024 search data
+
+- **No reposts** — `from:dril` search only returns dril's own posts, not retweets
+- **Nov-Dec 2023 gap** — search returned 0 results for this window; may be a gap in posting or a search limitation
+- **No quote tweets detected** — quote tweets may not appear in search results the same way as regular posts
+- **~20 results per page cap** — dense posting periods may have missed posts despite 2-week search windows
+
 ## Historical theme extraction
 
 The `theme-extractor/` directory contains tooling to scrape the [Wayback Machine](https://web.archive.org/) and archive how dril's tweets looked at different points in time across Twitter's four design eras (Classic, New, Material, Modern).
@@ -75,7 +91,7 @@ All extraction is manual, rate-limited (10s between page loads), and resumable. 
 
 ## Status
 
-The normalizer, builder, and search frontend are functional. The [codemasher/dril-archive](https://github.com/codemasher/dril-archive) covers ~11,000 posts from 2008-2023. Theme extraction tooling is built; frontend integration of era-accurate post styling is in progress.
+The archive covers 2008 through present across X and Bluesky (~12,800 posts). Bluesky syncs daily. The X data has a known thin spot in late 2023. Theme extraction tooling is built; frontend integration of era-accurate post styling is in progress.
 
 ## License
 
