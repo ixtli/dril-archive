@@ -64,13 +64,14 @@ theme-extractor/
   data/                     # Extraction output (gitignored)
     wayback/                # Raw DOM/CSS/screenshots per era
     profile/                # Profile snapshots + avatars
-  output/                   # Generated theme CSS (checked in)
+  output/                   # Generated artifacts (checked in)
     themes/
       classic.css
       new.css
       material.css
       modern.css
     avatars/                # Downloaded profile images (checked in)
+    profile-snapshots.ndjson  # Curated profile data for the builder
 ```
 
 Uses Playwright to:

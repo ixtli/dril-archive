@@ -191,6 +191,57 @@ Cache profile resolution results (there are only ~10-20 snapshots, so preload al
 
 Avatars are small static images served from `site/avatars/`. The build step copies them there. For the dev server, `scripts/dev.ts` also copies them.
 
+## Phase 3.5: GitHub Pages Deployment
+
+### Current Deploy Pipeline (`.github/workflows/deploy.yml`)
+
+The existing workflow triggers on push to main, daily at 6am UTC, and manual dispatch. It:
+
+1. Checks out the repo
+2. Builds Rust tools (`dril-normalizer`, `dril-builder`, `dril-bsky-sync`)
+3. Clones codemasher/dril-archive, normalizes it
+4. Syncs Bluesky posts
+5. Appends scraped data
+6. Builds the SQLite DB → `site/dril.db`
+7. Copies SQLite WASM → `site/sqlite3/`
+8. Uploads `site/` as the Pages artifact
+
+### Required Changes
+
+Since `theme-extractor/output/` (themes CSS + avatars) is checked into the repo, the deploy workflow only needs copy steps — no Playwright or extraction at CI time.
+
+Add these steps **after** "Copy SQLite WASM runtime" and **before** "Upload Pages artifact":
+
+```yaml
+- name: Copy theme CSS
+  run: |
+    mkdir -p site/themes
+    cp -r theme-extractor/output/themes/* site/themes/
+
+- name: Copy avatar images
+  run: |
+    mkdir -p site/avatars
+    cp -r theme-extractor/output/avatars/* site/avatars/
+```
+
+Update the "Build database" step to include profile data once the builder supports it:
+
+```yaml
+- name: Build database
+  run: ./target/release/dril-builder data/ site/dril.db --profiles theme-extractor/data/profile/snapshots.ndjson
+```
+
+**Note:** `theme-extractor/data/profile/snapshots.ndjson` is gitignored (raw extraction output), but this specific file should be promoted to `theme-extractor/output/profile-snapshots.ndjson` and checked in so CI can use it. Update the builder `--profiles` path accordingly:
+
+```yaml
+- name: Build database
+  run: ./target/release/dril-builder data/ site/dril.db --profiles theme-extractor/output/profile-snapshots.ndjson
+```
+
+### No New CI Dependencies
+
+The extraction tooling (Playwright, tsx) is **not** needed in CI. All extraction happens offline and the results are committed. CI only copies static files and passes a new flag to the builder.
+
 ## Phase 4: Refinement
 
 ### 4.1 Visual QA
@@ -232,6 +283,7 @@ Avatars are small static images served from `site/avatars/`. The build step copi
 | `theme-extractor/src/build-themes.ts` | Create | 2.1 |
 | `theme-extractor/output/themes/*.css` | Create (generated, checked in) | 2.1 |
 | `theme-extractor/output/avatars/` | Populate (checked in) | 1.3 |
+| `theme-extractor/output/profile-snapshots.ndjson` | Create (checked in) | 1.3 |
 | `builder/src/profile.rs` | Create | 2.2 |
 | `builder/src/db.rs` | Modify — add profile_snapshots table | 2.2 |
 | `builder/src/main.rs` | Modify — add --profiles flag, copy avatars | 2.3 |
@@ -240,6 +292,7 @@ Avatars are small static images served from `site/avatars/`. The build step copi
 | `site/app.js` | Modify — new post DOM, theme logic, profile resolution | 3.1-3.3 |
 | `site/index.html` | Modify — theme CSS links, selector UI | 3.2-3.3 |
 | `site/style.css` | Modify — theme selector styling, base post layout | 3.3 |
+| `.github/workflows/deploy.yml` | Modify — add theme/avatar copy steps, --profiles flag | 3.5 |
 | `scripts/dev.ts` | Modify — copy themes + avatars from theme-extractor/output | 4.3 |
 | `tests/e2e.spec.ts` | Modify — theme tests | 4.4 |
 | `testdata/` | Add profile fixture data | 4.3 |
