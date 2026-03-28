@@ -29,6 +29,9 @@ jobs:
       - name: Install JS dependencies
         run: bun install
 
+      - name: Install site dependencies
+        run: cd site && bun install
+
       - name: Build all tools
         run: cargo build --release -p dril-normalizer -p dril-builder -p dril-bsky-sync
 
@@ -48,18 +51,26 @@ jobs:
           done
 
       - name: Build database
-        run: ./target/release/dril-builder data/ site/dril.db
+        run: ./target/release/dril-builder data/ site/vendor/dril.db
 
       - name: Copy SQLite WASM runtime
         run: |
-          mkdir -p site/sqlite3
-          cp node_modules/@sqlite.org/sqlite-wasm/dist/index.mjs site/sqlite3/
-          cp node_modules/@sqlite.org/sqlite-wasm/dist/sqlite3.wasm site/sqlite3/
+          mkdir -p site/vendor/sqlite3
+          cp site/node_modules/@sqlite.org/sqlite-wasm/dist/index.mjs site/vendor/sqlite3/
+          cp site/node_modules/@sqlite.org/sqlite-wasm/dist/sqlite3.wasm site/vendor/sqlite3/
+
+      - name: Build Svelte app
+        run: cd site && bunx vite build
+
+      - name: Copy vendor assets into dist
+        run: |
+          cp site/vendor/dril.db site/dist/
+          cp -r site/vendor/sqlite3 site/dist/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: site/dist
 
   deploy:
     needs: build
