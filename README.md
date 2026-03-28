@@ -69,9 +69,29 @@ pre-commit run --all-files
 - **No quote tweets detected** — quote tweets may not appear in search results the same way as regular posts
 - **~20 results per page cap** — dense posting periods may have missed posts despite 2-week search windows
 
+## Historical theme extraction
+
+The `theme-extractor/` directory contains tooling to scrape the [Wayback Machine](https://web.archive.org/) and archive how dril's tweets looked at different points in time across Twitter's four design eras (Classic, New, Material, Modern).
+
+It captures the actual DOM structure and computed CSS from archived tweet pages, plus dril's profile metadata (display name, bio, avatar) over time. The same infrastructure also supports backfilling missing posts from the 2023-2024 gap period when Twitter's API became unreliable.
+
+```sh
+cd theme-extractor
+bun install && npx playwright install chromium
+
+bun run select          # Find candidate posts from the archive DB
+bun run discover        # Check Wayback Machine for snapshots
+bun run extract:themes  # Extract DOM/CSS/screenshots
+bun run build:themes    # Generate theme CSS
+
+bun run backfill        # Recover missing 2023-2024 posts (incremental)
+```
+
+All extraction is manual, rate-limited (10s between page loads), and resumable. See [CLAUDE.md](CLAUDE.md) for full details.
+
 ## Status
 
-The archive covers 2008 through present across X and Bluesky (~12,800 posts). Bluesky syncs daily. The X data has a known thin spot in late 2023.
+The archive covers 2008 through present across X and Bluesky (~12,800 posts). Bluesky syncs daily. The X data has a known thin spot in late 2023. Theme extraction tooling is built; frontend integration of era-accurate post styling is in progress.
 
 ## License
 

@@ -1,0 +1,22 @@
+{
+	"name": "dril-theme-extractor",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"select": "bun src/tasks/select-samples.ts",
+		"discover": "bun src/tasks/discover-samples.ts",
+		"extract:themes": "bun src/tasks/extract-themes.ts",
+		"extract:profiles": "bun src/tasks/extract-profiles.ts",
+		"build:themes": "bun src/tasks/build-themes.ts",
+		"backfill": "bun src/tasks/backfill-posts.ts"
+	},
+	"devDependencies": {
+		"@types/better-sqlite3": "^7.6.13",
+		"tsx": "^4.19",
+		"typescript": "^5.7"
+	},
+	"dependencies": {
+		"better-sqlite3": "^11.8",
+		"playwright": "^1.52"
+	}
+}

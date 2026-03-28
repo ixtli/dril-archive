@@ -3,7 +3,12 @@
 !/data/scraped/
 /site/dril.db
 /site/sqlite3/
+/site/themes/
+/site/avatars/
 node_modules/
 package-lock.json
 test-results/
 playwright-report/
+theme-extractor/data/
+theme-extractor/node_modules/
+theme-extractor/dist/
