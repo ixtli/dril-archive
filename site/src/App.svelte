@@ -1,9 +1,17 @@
 <script lang="ts">
-	import type { Post, SortOption, FilterState } from "./lib/types";
+	import type {
+		Post,
+		SortOption,
+		FilterState,
+		ThemeId,
+		PlatformFilter,
+		TypeFilter,
+	} from "./lib/types";
 	import { initDb } from "./lib/db";
 	import { debouncedSearch } from "./lib/search";
 	import LoadingBar from "./components/LoadingBar.svelte";
 	import SearchBar from "./components/SearchBar.svelte";
+	import Controls from "./components/Controls.svelte";
 	import PostCard from "./components/PostCard.svelte";
 
 	let loading = $state(true);
@@ -16,7 +24,7 @@
 	let sort = $state<SortOption>("relevance");
 	let filters = $state<FilterState>({ platform: "all", type: "all" });
 	let controlsOpen = $state(false);
-	let themeOverride = $state<import("./lib/types").ThemeId | "auto">("auto");
+	let themeOverride = $state<ThemeId | "auto">("auto");
 
 	async function init() {
 		try {
@@ -51,6 +59,32 @@
 		controlsOpen = !controlsOpen;
 	}
 
+	function rerunSearch() {
+		if (!query.trim()) return;
+		debouncedSearch(query, sort, filters, (r) => {
+			results = r;
+		});
+	}
+
+	function handleSortChange(newSort: SortOption) {
+		sort = newSort;
+		rerunSearch();
+	}
+
+	function handlePlatformChange(newPlatform: PlatformFilter) {
+		filters = { ...filters, platform: newPlatform };
+		rerunSearch();
+	}
+
+	function handleTypeChange(newType: TypeFilter) {
+		filters = { ...filters, type: newType };
+		rerunSearch();
+	}
+
+	function handleThemeChange(newTheme: ThemeId | "auto") {
+		themeOverride = newTheme;
+	}
+
 	init();
 </script>
 
@@ -61,6 +95,19 @@
 		<LoadingBar {progress} message={loadingMessage} />
 	{:else}
 		<SearchBar value={query} onInput={handleInput} onToggleControls={handleToggleControls} />
+
+		{#if controlsOpen}
+			<Controls
+				{sort}
+				platformFilter={filters.platform}
+				typeFilter={filters.type}
+				{themeOverride}
+				onSortChange={handleSortChange}
+				onPlatformChange={handlePlatformChange}
+				onTypeChange={handleTypeChange}
+				onThemeChange={handleThemeChange}
+			/>
+		{/if}
 
 		<div class="results" data-testid="results">
 			{#if query.trim() && results.length === 0}
