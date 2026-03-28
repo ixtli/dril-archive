@@ -10,21 +10,44 @@ repos:
 
       - id: cargo-clippy
         name: cargo clippy
-        entry: cargo clippy -- -D warnings
+        entry: cargo clippy --workspace -- -D warnings
         language: system
         types: [rust]
         pass_filenames: false
 
       - id: biome-format
-        name: biome format
+        name: biome format (non-svelte)
         entry: bunx @biomejs/biome format --html-formatter-enabled=true --css-formatter-enabled=true
         language: system
-        types_or: [javascript, html, css]
+        types_or: [javascript, css]
+        exclude: ^site/src/
         pass_filenames: true
 
       - id: biome-lint
-        name: biome lint
+        name: biome lint (non-svelte)
         entry: bunx @biomejs/biome lint
         language: system
         types: [javascript]
+        exclude: ^site/src/
         pass_filenames: true
+
+      - id: prettier
+        name: prettier (svelte app)
+        entry: bash -c 'cd site && for f in "$@"; do bunx prettier --check "${f#site/}"; done' --
+        language: system
+        files: ^site/src/.*\.(svelte|ts|css|html)$
+        pass_filenames: true
+
+      - id: eslint
+        name: eslint (svelte app)
+        entry: bash -c 'cd site && for f in "$@"; do args+=("${f#site/}"); done && bunx eslint "${args[@]}"' --
+        language: system
+        files: ^site/src/.*\.(svelte|ts)$
+        pass_filenames: true
+
+      - id: svelte-check
+        name: svelte-check
+        entry: bash -c 'cd site && bunx svelte-check'
+        language: system
+        files: ^site/src/
+        pass_filenames: false
