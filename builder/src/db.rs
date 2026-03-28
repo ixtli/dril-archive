@@ -24,6 +24,33 @@ pub fn create_db(path: &std::path::Path) -> Result<Connection, String> {
             content='posts',
             content_rowid='rowid'
         );
+
+        CREATE TABLE reposts (
+            id TEXT PRIMARY KEY,
+            created_at TEXT NOT NULL,
+            original_post_id TEXT NOT NULL,
+            original_user_id TEXT NOT NULL,
+            original_text TEXT NOT NULL,
+            original_created_at TEXT NOT NULL,
+            likes INTEGER NOT NULL DEFAULT 0,
+            shares INTEGER NOT NULL DEFAULT 0
+        );
+
+        CREATE TABLE media (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id TEXT NOT NULL REFERENCES posts(id),
+            type TEXT NOT NULL,
+            url TEXT NOT NULL,
+            width INTEGER,
+            height INTEGER,
+            alt_text TEXT
+        );
+
+        CREATE TABLE users (
+            id TEXT PRIMARY KEY,
+            screen_name TEXT NOT NULL,
+            name TEXT
+        );
         ",
     )
     .map_err(|e| format!("create tables: {e}"))?;
@@ -136,6 +163,20 @@ mod tests {
                 shares: 12345,
             },
         ]
+    }
+
+    #[test]
+    fn test_create_db_creates_all_tables() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = create_db(&db_path).unwrap();
+
+        for table in &["posts", "posts_fts", "reposts", "media", "users"] {
+            let count: i64 = conn
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(count, 0, "table {table} should exist and be empty");
+        }
     }
 
     #[test]
