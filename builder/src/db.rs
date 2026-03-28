@@ -8,6 +8,7 @@ pub fn create_db(path: &std::path::Path) -> Result<Connection, String> {
         "
         CREATE TABLE posts (
             id TEXT PRIMARY KEY,
+            platform TEXT NOT NULL DEFAULT 'x',
             text TEXT NOT NULL,
             created_at TEXT NOT NULL,
             is_reply INTEGER NOT NULL DEFAULT 0,
@@ -27,6 +28,7 @@ pub fn create_db(path: &std::path::Path) -> Result<Connection, String> {
 
         CREATE TABLE reposts (
             id TEXT PRIMARY KEY,
+            platform TEXT NOT NULL DEFAULT 'x',
             created_at TEXT NOT NULL,
             original_post_id TEXT NOT NULL,
             original_user_id TEXT NOT NULL,
@@ -48,6 +50,7 @@ pub fn create_db(path: &std::path::Path) -> Result<Connection, String> {
 
         CREATE TABLE users (
             id TEXT PRIMARY KEY,
+            platform TEXT NOT NULL DEFAULT 'x',
             screen_name TEXT NOT NULL,
             name TEXT
         );
@@ -64,8 +67,8 @@ pub fn insert_posts(conn: &Connection, posts: &[Post]) -> Result<usize, String> 
 
     let mut post_stmt = conn
         .prepare(
-            "INSERT INTO posts (id, text, created_at, is_reply, reply_to_user, is_quote, quoted_text, likes, shares)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            "INSERT INTO posts (id, platform, text, created_at, is_reply, reply_to_user, is_quote, quoted_text, likes, shares)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         )
         .map_err(|e| format!("prepare insert: {e}"))?;
 
@@ -77,6 +80,7 @@ pub fn insert_posts(conn: &Connection, posts: &[Post]) -> Result<usize, String> 
         post_stmt
             .execute(rusqlite::params![
                 post.id,
+                post.platform,
                 post.text,
                 post.created_at,
                 post.is_reply as i64,
@@ -107,14 +111,15 @@ pub fn insert_reposts(conn: &Connection, reposts: &[dril_types::Repost]) -> Resu
 
     let mut stmt = conn
         .prepare(
-            "INSERT INTO reposts (id, created_at, original_post_id, original_user_id, original_text, original_created_at, likes, shares)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            "INSERT INTO reposts (id, platform, created_at, original_post_id, original_user_id, original_text, original_created_at, likes, shares)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         )
         .map_err(|e| format!("prepare repost insert: {e}"))?;
 
     for repost in reposts {
         stmt.execute(rusqlite::params![
             repost.id,
+            repost.platform,
             repost.created_at,
             repost.original_post_id,
             repost.original_user_id,
@@ -165,14 +170,19 @@ pub fn insert_users(conn: &Connection, users: &[dril_types::User]) -> Result<usi
 
     let mut stmt = conn
         .prepare(
-            "INSERT INTO users (id, screen_name, name)
-             VALUES (?1, ?2, ?3)",
+            "INSERT INTO users (id, platform, screen_name, name)
+             VALUES (?1, ?2, ?3, ?4)",
         )
         .map_err(|e| format!("prepare user insert: {e}"))?;
 
     for user in users {
-        stmt.execute(rusqlite::params![user.id, user.screen_name, user.name,])
-            .map_err(|e| format!("insert user {}: {e}", user.id))?;
+        stmt.execute(rusqlite::params![
+            user.id,
+            user.platform,
+            user.screen_name,
+            user.name,
+        ])
+        .map_err(|e| format!("insert user {}: {e}", user.id))?;
     }
 
     conn.execute_batch("COMMIT;")
@@ -522,5 +532,75 @@ mod tests {
             )
             .unwrap();
         assert_eq!(screen_name, "dril");
+    }
+
+    #[test]
+    fn test_posts_store_platform() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = create_db(&db_path).unwrap();
+
+        let posts = vec![
+            Post {
+                id: "1".to_string(),
+                platform: "x".to_string(),
+                text: "twitter post".to_string(),
+                created_at: "2024-01-01T00:00:00Z".to_string(),
+                is_reply: false,
+                reply_to_user: None,
+                is_quote: false,
+                quoted_text: None,
+                likes: 100,
+                shares: 10,
+            },
+            Post {
+                id: "2".to_string(),
+                platform: "threads".to_string(),
+                text: "threads post".to_string(),
+                created_at: "2024-01-02T00:00:00Z".to_string(),
+                is_reply: false,
+                reply_to_user: None,
+                is_quote: false,
+                quoted_text: None,
+                likes: 200,
+                shares: 20,
+            },
+            Post {
+                id: "3".to_string(),
+                platform: "bsky".to_string(),
+                text: "bluesky post".to_string(),
+                created_at: "2024-01-03T00:00:00Z".to_string(),
+                is_reply: false,
+                reply_to_user: None,
+                is_quote: false,
+                quoted_text: None,
+                likes: 300,
+                shares: 30,
+            },
+        ];
+        insert_posts(&conn, &posts).unwrap();
+
+        let platform: String = conn
+            .query_row("SELECT platform FROM posts WHERE id = '2'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(platform, "threads");
+
+        // All three are searchable via FTS
+        let mut stmt = conn
+            .prepare(
+                "SELECT t.id, t.platform FROM posts_fts f JOIN posts t ON t.rowid = f.rowid WHERE posts_fts MATCH 'post' ORDER BY t.id",
+            )
+            .unwrap();
+        let results: Vec<(String, String)> = stmt
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+        assert_eq!(results.len(), 3);
+        assert_eq!(results[0], ("1".to_string(), "x".to_string()));
+        assert_eq!(results[1], ("2".to_string(), "threads".to_string()));
+        assert_eq!(results[2], ("3".to_string(), "bsky".to_string()));
     }
 }
