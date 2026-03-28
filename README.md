@@ -10,7 +10,7 @@ Type a word, get results instantly. The entire post corpus lives in a single SQL
 2. A static web page downloads that database and opens it in-browser using the [official SQLite WASM build](https://sqlite.org/wasm)
 3. Every keystroke fires a prefix-matched FTS5 query — results appear in under 50ms
 
-The whole thing ships as four files: `index.html`, `app.js`, `style.css`, and `dril.db`. Drop them on any static host.
+The deployable is the `site/` directory: `index.html`, `app.js`, `style.css`, `dril.db`, and `sqlite3/` (WASM runtime). Drop it on any static host.
 
 ## Building
 

@@ -100,6 +100,14 @@ One JSON object per line:
 
 Post URLs are derived from ID: `https://x.com/dril/status/{id}`
 
+## Gotchas
+
+- **Do not use sql.js** — it has never shipped FTS5 support. We use `@sqlite.org/sqlite-wasm` (the official SQLite team build) which includes all extensions. This was discovered when E2E tests revealed "no such module: fts5" in-browser.
+- **SQLite WASM API is not sql.js** — loading a DB requires `sqlite3.capi.sqlite3_js_posix_create_file(path, bytes)` then `new sqlite3.oo1.DB(path, 'r')`. Row access uses `stmt.get([])` (must pass empty array). Cleanup is `stmt.finalize()` not `stmt.free()`.
+- **`site/sqlite3/` is a build artifact** — the WASM files are copied from `node_modules` by `scripts/dev.ts`. Don't edit them or commit them. Run `bun run dev` to regenerate.
+- **Biome ignores HTML/CSS by default** — format commands need `--html-formatter-enabled=true --css-formatter-enabled=true`. The pre-commit hooks already have this configured.
+- **E2E tests must not assert transient loading states** — the test DB is tiny and loads before Playwright can observe the progress bar. Only assert the final state (search input visible).
+
 ## Not Yet Implemented
 
 - **Normalizer**: Rust CLI to convert raw archive/API data to NDJSON (blocked on choosing data source)
