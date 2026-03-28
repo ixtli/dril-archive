@@ -332,7 +332,29 @@ The current `site/app.js`, `site/index.html`, and `site/style.css` are replaced 
 
 ## Test Strategy
 
-- **E2E tests (Playwright):** Existing 5 tests adapted to the new UI selectors. Same scenarios: page load, search, reply metadata, clear, no results.
-- **svelte-check:** Catches type errors and template issues at pre-commit time.
-- **eslint:** Catches a11y and best practice issues.
-- **Rust tests:** Unchanged (27 builder + normalizer tests).
+### E2E Tests (Playwright)
+
+**Existing tests (adapted to new UI selectors):**
+1. Page loads and search box appears
+2. Search returns results
+3. Reply metadata renders
+4. Clear search clears results
+5. No results state
+
+**New tests for display layer:**
+6. **Era theme rendering** — search for a known Classic-era post, verify it renders inside a `TwitterClassic` template (check for era-specific CSS class or DOM structure)
+7. **Modern theme rendering** — search for a known Modern-era post, verify it renders inside a `TwitterModern` template
+8. **Platform template** — if test data includes a Bluesky post, verify it uses the Bluesky template
+9. **Controls panel toggle** — click the cog icon, verify the controls panel is visible; click again, verify it's hidden
+10. **Sort by newest** — open controls, select "Newest first", verify results are in descending date order
+11. **Filter by platform** — open controls, select "X" filter, verify no Bluesky results appear (and vice versa)
+12. **Theme override** — open controls, select "Twitter Classic" theme override, verify all results render with the Classic template regardless of era
+13. **Responsive mobile** — set viewport to 375px width, verify the layout doesn't overflow and the search/controls are usable
+
+### Static Analysis (pre-commit)
+- **svelte-check:** Type errors and Svelte template validation
+- **eslint:** a11y issues, best practices, type-aware rules
+- **prettier:** Formatting consistency
+
+### Rust Tests
+Unchanged (28 builder + 9 normalizer tests).
