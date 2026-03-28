@@ -36,6 +36,12 @@ jobs:
       - name: Normalize archive
         run: ./target/release/dril-normalizer --source codemasher --input /tmp/dril-archive/.build/dril.json --output-dir data/
 
+      - name: Append scraped data
+        run: |
+          for f in data/scraped/*.jsonl; do
+            [ -f "$f" ] && python3 scripts/split_manual_scrape.py "$f" data/
+          done
+
       - name: Build database
         run: ./target/release/dril-builder data/ site/dril.db
 

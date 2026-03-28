@@ -1,5 +1,6 @@
 /target
-/data/
+/data/*
+!/data/scraped/
 /site/dril.db
 /site/sqlite3/
 node_modules/
