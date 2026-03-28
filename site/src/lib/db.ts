@@ -47,8 +47,12 @@ export async function initDb(onProgress: ProgressCallback): Promise<void> {
 
 	onProgress(dbData.length, dbData.length, "Preparing search...");
 
-	// @ts-expect-error - Vite serves this from public/sqlite3/ at runtime
-	const sqlite3InitModule = (await import("/sqlite3/index.mjs")).default;
+	// Dynamic import with runtime-constructed URL to bypass Vite's static analysis.
+	// Vite blocks imports from public/ at transform time, but the middleware serves
+	// these files correctly at runtime.
+	const moduleUrl = new URL("/sqlite3/index.mjs", window.location.origin).href;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const sqlite3InitModule = ((await import(/* @vite-ignore */ moduleUrl)) as any).default;
 	const sqlite3 = await sqlite3InitModule();
 
 	sqlite3.capi.sqlite3_js_posix_create_file("/dril.db", dbData);

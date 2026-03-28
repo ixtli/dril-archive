@@ -4,13 +4,16 @@ import { join } from "path";
 
 const ROOT_DIR = join(import.meta.dir, "..");
 const SITE_DIR = join(ROOT_DIR, "site");
-const DB_PATH = join(SITE_DIR, "dril.db");
-const SQLITE3_DIR = join(SITE_DIR, "sqlite3");
-const PORT = 3000;
+const VENDOR_DIR = join(SITE_DIR, "vendor");
+const DB_PATH = join(VENDOR_DIR, "dril.db");
+const SQLITE3_DIR = join(VENDOR_DIR, "sqlite3");
+
+// Ensure vendor directories exist
+mkdirSync(VENDOR_DIR, { recursive: true });
+mkdirSync(SQLITE3_DIR, { recursive: true });
 
 // Copy SQLite WASM files from node_modules
-const SQLITE_SRC = join(ROOT_DIR, "node_modules/@sqlite.org/sqlite-wasm/dist");
-mkdirSync(SQLITE3_DIR, { recursive: true });
+const SQLITE_SRC = join(SITE_DIR, "node_modules/@sqlite.org/sqlite-wasm/dist");
 copyFileSync(join(SQLITE_SRC, "index.mjs"), join(SQLITE3_DIR, "index.mjs"));
 copyFileSync(join(SQLITE_SRC, "sqlite3.wasm"), join(SQLITE3_DIR, "sqlite3.wasm"));
 
@@ -20,28 +23,18 @@ try {
 	console.log("dril.db exists, skipping build");
 } catch {
 	console.log("Building test database...");
-	execSync("cargo run -p dril-builder -- testdata/sample.ndjson site/dril.db", {
+	execSync("cargo run -p dril-builder -- testdata/sample.ndjson site/vendor/dril.db", {
 		stdio: "inherit",
 		cwd: ROOT_DIR,
 	});
 }
 
-// Serve the site directory
-const server = Bun.serve({
-	port: PORT,
-	async fetch(req) {
-		const url = new URL(req.url);
-		let path = url.pathname;
-		if (path === "/") path = "/index.html";
-
-		const filePath = join(SITE_DIR, path);
-		const file = Bun.file(filePath);
-
-		if (await file.exists()) {
-			return new Response(file);
-		}
-		return new Response("Not Found", { status: 404 });
-	},
+// Start Vite dev server using Bun.spawn for proper subprocess lifecycle
+const vite = Bun.spawn(["bunx", "vite", "--port", "3000"], {
+	cwd: SITE_DIR,
+	stdio: ["inherit", "inherit", "inherit"],
 });
 
-console.log(`Serving site at http://localhost:${server.port}`);
+// Wait for the subprocess to exit
+await vite.exited;
+process.exit(vite.exitCode ?? 0);
