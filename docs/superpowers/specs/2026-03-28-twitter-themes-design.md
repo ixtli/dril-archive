@@ -49,16 +49,38 @@ Select 2-3 snapshots per era from the CDX results, targeting:
 
 ~8-12 total page loads. Cache everything locally.
 
-### Extraction Script (`scripts/extract-themes.ts`)
+### Extraction Tool (`theme-extractor/`)
 
-Uses Playwright (already a dev dependency) to:
+A self-contained subdirectory with its own `package.json` and Playwright dependency. All extraction scripts, output data, and generated theme CSS live here.
+
+```
+theme-extractor/
+  package.json              # Playwright + ts dependencies
+  src/
+    cdx-discover.ts         # CDX API snapshot discovery
+    extract-themes.ts       # DOM/CSS extraction from tweet pages
+    extract-profiles.ts     # Profile metadata + avatar extraction
+    build-themes.ts         # Generate CSS from extracted data
+  data/                     # Extraction output (gitignored)
+    wayback/                # Raw DOM/CSS/screenshots per era
+    profile/                # Profile snapshots + avatars
+  output/                   # Generated theme CSS (checked in)
+    themes/
+      classic.css
+      new.css
+      material.css
+      modern.css
+    avatars/                # Downloaded profile images (checked in)
+```
+
+Uses Playwright to:
 
 1. Load each Wayback Machine URL in headless Chromium
 2. Wait for the tweet container to render
 3. Extract the tweet card's DOM structure (tag names, class names, nesting)
 4. Call `getComputedStyle()` on each significant element
 5. Download any relevant assets (avatar images, icon sprites)
-6. Write raw results to `data/wayback/`
+6. Write raw results to `theme-extractor/data/wayback/`
 
 **Rate limiting:** 10-second delay between requests. Polite User-Agent. Manual invocation only, never in CI.
 
@@ -67,7 +89,7 @@ Uses Playwright (already a dev dependency) to:
 Each snapshot produces a raw archive file:
 
 ```
-data/wayback/
+theme-extractor/data/wayback/
   {era}/
     {timestamp}/
       dom.html          # innerHTML of the tweet container
@@ -80,17 +102,9 @@ The raw DOM and computed styles are the archival artifact. Theme CSS files deriv
 
 ### Theme CSS Generation
 
-A second script (`scripts/build-themes.ts`) reads the extracted data and produces:
+A build script (`theme-extractor/src/build-themes.ts`) reads the extracted data and produces theme CSS files in `theme-extractor/output/themes/`. These are checked into the repo and copied to `site/themes/` during the site build step.
 
-```
-site/themes/
-  classic.css
-  new.css
-  material.css
-  modern.css
-```
-
-Each CSS file styles the standardized post DOM structure (see below) to match the era. These are checked into the repo.
+Each CSS file styles the standardized post DOM structure (see below) to match the era.
 
 ## Post DOM Structure
 
@@ -135,21 +149,21 @@ The frontend renders each post with a richer DOM than today:
 
 ### Extraction
 
-The profile extraction script (`scripts/extract-profiles.ts`) uses Playwright to:
+The profile extraction script (`theme-extractor/src/extract-profiles.ts`) uses Playwright to:
 
 1. Load Wayback Machine snapshots of `twitter.com/dril`
 2. Extract: display name, bio/description, avatar image URL
-3. Download the avatar image to `data/profile/`
-4. Output `data/profile/snapshots.ndjson`
+3. Download the avatar image to `theme-extractor/data/profile/avatars/`
+4. Output `theme-extractor/data/profile/snapshots.ndjson`
 
 ### Data Format
 
-**`data/profile/snapshots.ndjson`** — one line per snapshot:
+**`theme-extractor/data/profile/snapshots.ndjson`** — one line per snapshot:
 ```json
 {"captured_at":"2014-06-15T00:00:00Z","display_name":"wint","description":"TORTURE ME WITH PAIN","avatar_filename":"2014-06-15.jpg","avatar_url":"https://pbs.twimg.com/...","source_url":"https://web.archive.org/web/20140615/https://twitter.com/dril"}
 ```
 
-**`data/profile/avatars/`** — downloaded images:
+**`theme-extractor/data/profile/avatars/`** — downloaded images (copied to `theme-extractor/output/avatars/` for checked-in distribution):
 ```
 2009-03-20.jpg
 2011-08-14.jpg
@@ -174,7 +188,7 @@ CREATE TABLE profile_snapshots (
 );
 ```
 
-The builder reads `data/profile/snapshots.ndjson` and inserts rows. Avatar images are copied to `site/avatars/` as a build artifact.
+The builder reads `theme-extractor/data/profile/snapshots.ndjson` and inserts rows. Avatar images from `theme-extractor/output/avatars/` are copied to `site/avatars/` during the site build step.
 
 ### Frontend Profile Resolution
 
@@ -228,13 +242,15 @@ function getEra(createdAt) {
 ## Implementation Phases
 
 ### Phase 1: Wayback Extraction Tooling
-- `scripts/extract-themes.ts` — CDX discovery + Playwright style extraction
-- `scripts/extract-profiles.ts` — CDX discovery + Playwright profile extraction
-- Raw data lands in `data/wayback/` and `data/profile/`
+- `theme-extractor/` subdirectory with its own `package.json`
+- `src/cdx-discover.ts` — snapshot discovery via CDX API
+- `src/extract-themes.ts` — Playwright DOM/CSS extraction
+- `src/extract-profiles.ts` — Playwright profile metadata extraction
+- Raw data lands in `theme-extractor/data/` (gitignored)
 - Manual invocation, results cached
 
 ### Phase 2: Theme CSS + Profile Pipeline
-- `scripts/build-themes.ts` — generate `site/themes/*.css` from extracted data
+- `src/build-themes.ts` — generate `theme-extractor/output/themes/*.css` from extracted data
 - Extend builder to read `data/profile/snapshots.ndjson` and populate `profile_snapshots` table
 - Copy avatar images to `site/avatars/` during build
 

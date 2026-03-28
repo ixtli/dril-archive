@@ -4,23 +4,58 @@ Implements the design in `specs/2026-03-28-twitter-themes-design.md`.
 
 ## Phase 1: Wayback Extraction Tooling
 
+All extraction tooling lives in the `theme-extractor/` subdirectory at the repo root.
+
+### 1.0 Scaffold `theme-extractor/`
+
+Create the subdirectory with its own `package.json`:
+
+```
+theme-extractor/
+  package.json              # playwright, typescript, tsx
+  tsconfig.json
+  src/
+    cdx-discover.ts
+    extract-themes.ts
+    extract-profiles.ts
+    build-themes.ts
+  data/                     # gitignored — raw extraction output
+  output/                   # checked in — generated themes + avatars
+    themes/
+    avatars/
+```
+
+`package.json` scripts:
+```json
+{
+  "scripts": {
+    "discover": "tsx src/cdx-discover.ts",
+    "extract:themes": "tsx src/extract-themes.ts",
+    "extract:profiles": "tsx src/extract-profiles.ts",
+    "build:themes": "tsx src/build-themes.ts"
+  }
+}
+```
+
+Add `theme-extractor/data/` to the repo root `.gitignore`.
+
 ### 1.1 CDX Discovery Script
 
-**File:** `scripts/cdx-discover.ts`
+**File:** `theme-extractor/src/cdx-discover.ts`
 
 Query the Wayback Machine CDX API to find usable snapshots:
 
 - Tweet pages: `twitter.com/dril/status/*` — need ~2-3 per era for DOM/CSS extraction
 - Profile pages: `twitter.com/dril` — need ~1-2 per year for profile metadata
 - Filter by `statuscode:200`, collapse by `timestamp:4` (yearly) or `timestamp:6` (monthly)
-- Output a curated `data/wayback/snapshots.json` listing the selected URLs and timestamps
+- Output a curated `theme-extractor/data/snapshots.json` listing the selected URLs and timestamps
 - Use `fetch()` with 5s delay between CDX API calls
 
 Human review step: manually inspect `snapshots.json` and prune to the best candidates.
 
 ### 1.2 Theme Extraction Script
 
-**File:** `scripts/extract-themes.ts`
+**File:** `theme-extractor/src/extract-themes.ts`
 
 For each selected tweet-page snapshot:
 
@@ -33,7 +68,7 @@ For each selected tweet-page snapshot:
    - `page.screenshot({ clip: tweetBoundingBox })` → `screenshot.png`
    - Metadata (URL, timestamp, selectors used) → `metadata.json`
 5. 10-second delay before next snapshot
-6. Write all output to `data/wayback/{era}/{timestamp}/`
+6. Write all output to `theme-extractor/data/wayback/{era}/{timestamp}/`
 
 **Key selectors by era:**
 | Era | Tweet container selector |
@@ -45,14 +80,14 @@ For each selected tweet-page snapshot:
 
 ### 1.3 Profile Extraction Script
 
-**File:** `scripts/extract-profiles.ts`
+**File:** `theme-extractor/src/extract-profiles.ts`
 
 For each selected profile-page snapshot:
 
 1. Navigate to `https://web.archive.org/web/{timestamp}/https://twitter.com/dril`
 2. Extract display name, bio, avatar URL from the DOM
-3. Download avatar image to `data/profile/avatars/{date}.jpg`
-4. Append to `data/profile/snapshots.ndjson`
+3. Download avatar image to `theme-extractor/data/profile/avatars/{date}.jpg`
+4. Append to `theme-extractor/data/profile/snapshots.ndjson`
 5. 10-second delay between snapshots
 
 **Key selectors by era:**
@@ -67,14 +102,14 @@ For each selected profile-page snapshot:
 
 ### 2.1 Theme CSS Builder
 
-**File:** `scripts/build-themes.ts`
+**File:** `theme-extractor/src/build-themes.ts`
 
-Reads `data/wayback/{era}/*/styles.json` and generates `site/themes/{era}.css`.
+Reads `theme-extractor/data/wayback/{era}/*/styles.json` and generates `theme-extractor/output/themes/{era}.css`.
 
 For each era, map extracted computed styles to CSS rules targeting the standardized post DOM:
 
 ```css
-/* site/themes/classic.css */
+/* theme-extractor/output/themes/classic.css */
 .post[data-theme="classic"] {
   background: #fff;
   border: 1px solid #ccc;
@@ -98,17 +133,17 @@ The mapping from extracted DOM elements to our standardized DOM is manual/semi-a
 **Files:** `builder/src/profile.rs` (new), `builder/src/db.rs`, `builder/src/main.rs`
 
 - New struct `ProfileSnapshot { user_id, platform, captured_at, display_name, description, avatar_path }`
-- Parse `data/profile/snapshots.ndjson`
+- Parse `theme-extractor/data/profile/snapshots.ndjson`
 - New table `profile_snapshots` (see design spec for schema)
 - Insert during build
-- Copy `data/profile/avatars/*` to `site/avatars/` during build
+- Copy `theme-extractor/output/avatars/*` to `site/avatars/` during build
 
 ### 2.3 Extend Builder CLI
 
 The builder accepts an optional `--profiles` flag pointing to the profile NDJSON:
 
 ```sh
-dril-builder data/ site/dril.db --profiles data/profile/snapshots.ndjson
+dril-builder data/ site/dril.db --profiles theme-extractor/data/profile/snapshots.ndjson
 ```
 
 ## Phase 3: Frontend Integration
@@ -188,20 +223,23 @@ Avatars are small static images served from `site/avatars/`. The build step copi
 
 | File | Action | Phase |
 |------|--------|-------|
-| `scripts/cdx-discover.ts` | Create | 1.1 |
-| `scripts/extract-themes.ts` | Create | 1.2 |
-| `scripts/extract-profiles.ts` | Create | 1.3 |
-| `data/wayback/` | Populate (gitignored) | 1 |
-| `data/profile/` | Populate (gitignored) | 1 |
-| `scripts/build-themes.ts` | Create | 2.1 |
+| `theme-extractor/package.json` | Create | 1.0 |
+| `theme-extractor/tsconfig.json` | Create | 1.0 |
+| `theme-extractor/src/cdx-discover.ts` | Create | 1.1 |
+| `theme-extractor/src/extract-themes.ts` | Create | 1.2 |
+| `theme-extractor/src/extract-profiles.ts` | Create | 1.3 |
+| `theme-extractor/data/` | Populate (gitignored) | 1 |
+| `theme-extractor/src/build-themes.ts` | Create | 2.1 |
+| `theme-extractor/output/themes/*.css` | Create (generated, checked in) | 2.1 |
+| `theme-extractor/output/avatars/` | Populate (checked in) | 1.3 |
 | `builder/src/profile.rs` | Create | 2.2 |
 | `builder/src/db.rs` | Modify — add profile_snapshots table | 2.2 |
 | `builder/src/main.rs` | Modify — add --profiles flag, copy avatars | 2.3 |
-| `site/themes/*.css` | Create (generated, checked in) | 2.1 |
-| `site/avatars/` | Populate (build artifact, gitignored) | 2.2 |
+| `site/themes/*.css` | Copy from theme-extractor/output (build artifact) | 3.2 |
+| `site/avatars/` | Copy from theme-extractor/output (build artifact, gitignored) | 3.4 |
 | `site/app.js` | Modify — new post DOM, theme logic, profile resolution | 3.1-3.3 |
 | `site/index.html` | Modify — theme CSS links, selector UI | 3.2-3.3 |
 | `site/style.css` | Modify — theme selector styling, base post layout | 3.3 |
-| `scripts/dev.ts` | Modify — copy themes + avatars | 4.3 |
+| `scripts/dev.ts` | Modify — copy themes + avatars from theme-extractor/output | 4.3 |
 | `tests/e2e.spec.ts` | Modify — theme tests | 4.4 |
 | `testdata/` | Add profile fixture data | 4.3 |
