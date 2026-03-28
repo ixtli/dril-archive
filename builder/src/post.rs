@@ -9,6 +9,8 @@ pub struct Post {
     pub reply_to_user: Option<String>,
     pub is_quote: bool,
     pub quoted_text: Option<String>,
+    pub likes: u64,
+    pub shares: u64,
 }
 
 /// Parse an NDJSON reader into a Vec of Posts, deduplicating by ID.
@@ -40,7 +42,7 @@ mod tests {
 
     #[test]
     fn test_parse_single_post() {
-        let input = r#"{"id":"1","text":"no","created_at":"2008-09-15T12:00:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null}"#;
+        let input = r#"{"id":"1","text":"no","created_at":"2008-09-15T12:00:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null,"likes":42,"shares":3}"#;
         let reader = BufReader::new(input.as_bytes());
         let posts = parse_ndjson(reader).unwrap();
         assert_eq!(posts.len(), 1);
@@ -52,7 +54,7 @@ mod tests {
 
     #[test]
     fn test_parse_reply_post() {
-        let input = r#"{"id":"6","text":"@someone you are like a little baby. watch this","created_at":"2015-03-08T09:00:00Z","is_reply":true,"reply_to_user":"someone","is_quote":false,"quoted_text":null}"#;
+        let input = r#"{"id":"6","text":"@someone you are like a little baby. watch this","created_at":"2015-03-08T09:00:00Z","is_reply":true,"reply_to_user":"someone","is_quote":false,"quoted_text":null,"likes":89,"shares":12}"#;
         let reader = BufReader::new(input.as_bytes());
         let posts = parse_ndjson(reader).unwrap();
         assert_eq!(posts.len(), 1);
@@ -62,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_parse_quote_post() {
-        let input = r#"{"id":"10","text":"THERAPIST: your problem is, that youre perfect","created_at":"2016-05-19T07:45:00Z","is_reply":false,"reply_to_user":null,"is_quote":true,"quoted_text":"whats the worst thing a therapist has ever said to you"}"#;
+        let input = r#"{"id":"10","text":"THERAPIST: your problem is, that youre perfect","created_at":"2016-05-19T07:45:00Z","is_reply":false,"reply_to_user":null,"is_quote":true,"quoted_text":"whats the worst thing a therapist has ever said to you","likes":54321,"shares":12345}"#;
         let reader = BufReader::new(input.as_bytes());
         let posts = parse_ndjson(reader).unwrap();
         assert_eq!(posts.len(), 1);
@@ -76,9 +78,9 @@ mod tests {
     #[test]
     fn test_parse_multiple_posts() {
         let input = concat!(
-            r#"{"id":"1","text":"no","created_at":"2008-09-15T12:00:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null}"#,
+            r#"{"id":"1","text":"no","created_at":"2008-09-15T12:00:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null,"likes":42,"shares":3}"#,
             "\n",
-            r#"{"id":"2","text":"yes","created_at":"2009-01-01T00:00:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null}"#,
+            r#"{"id":"2","text":"yes","created_at":"2009-01-01T00:00:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null,"likes":10,"shares":1}"#,
         );
         let reader = BufReader::new(input.as_bytes());
         let posts = parse_ndjson(reader).unwrap();
@@ -90,9 +92,9 @@ mod tests {
     #[test]
     fn test_deduplicates_by_id() {
         let input = concat!(
-            r#"{"id":"1","text":"first","created_at":"2008-09-15T12:00:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null}"#,
+            r#"{"id":"1","text":"first","created_at":"2008-09-15T12:00:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null,"likes":42,"shares":3}"#,
             "\n",
-            r#"{"id":"1","text":"duplicate","created_at":"2008-09-15T12:00:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null}"#,
+            r#"{"id":"1","text":"duplicate","created_at":"2008-09-15T12:00:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null,"likes":42,"shares":3}"#,
         );
         let reader = BufReader::new(input.as_bytes());
         let posts = parse_ndjson(reader).unwrap();
@@ -103,9 +105,9 @@ mod tests {
     #[test]
     fn test_skips_blank_lines() {
         let input = concat!(
-            r#"{"id":"1","text":"no","created_at":"2008-09-15T12:00:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null}"#,
+            r#"{"id":"1","text":"no","created_at":"2008-09-15T12:00:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null,"likes":42,"shares":3}"#,
             "\n\n",
-            r#"{"id":"2","text":"yes","created_at":"2009-01-01T00:00:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null}"#,
+            r#"{"id":"2","text":"yes","created_at":"2009-01-01T00:00:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null,"likes":10,"shares":1}"#,
         );
         let reader = BufReader::new(input.as_bytes());
         let posts = parse_ndjson(reader).unwrap();

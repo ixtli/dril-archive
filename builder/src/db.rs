@@ -13,7 +13,9 @@ pub fn create_db(path: &std::path::Path) -> Result<Connection, String> {
             is_reply INTEGER NOT NULL DEFAULT 0,
             reply_to_user TEXT,
             is_quote INTEGER NOT NULL DEFAULT 0,
-            quoted_text TEXT
+            quoted_text TEXT,
+            likes INTEGER NOT NULL DEFAULT 0,
+            shares INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE VIRTUAL TABLE posts_fts USING fts5(
@@ -35,8 +37,8 @@ pub fn insert_posts(conn: &Connection, posts: &[Post]) -> Result<usize, String> 
 
     let mut post_stmt = conn
         .prepare(
-            "INSERT INTO posts (id, text, created_at, is_reply, reply_to_user, is_quote, quoted_text)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO posts (id, text, created_at, is_reply, reply_to_user, is_quote, quoted_text, likes, shares)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         )
         .map_err(|e| format!("prepare insert: {e}"))?;
 
@@ -54,6 +56,8 @@ pub fn insert_posts(conn: &Connection, posts: &[Post]) -> Result<usize, String> 
                 post.reply_to_user,
                 post.is_quote as i64,
                 post.quoted_text,
+                post.likes as i64,
+                post.shares as i64,
             ])
             .map_err(|e| format!("insert post {}: {e}", post.id))?;
 
@@ -93,6 +97,8 @@ mod tests {
                 reply_to_user: None,
                 is_quote: false,
                 quoted_text: None,
+                likes: 4200,
+                shares: 850,
             },
             Post {
                 id: "2".to_string(),
@@ -102,6 +108,8 @@ mod tests {
                 reply_to_user: None,
                 is_quote: false,
                 quoted_text: None,
+                likes: 178000,
+                shares: 89000,
             },
             Post {
                 id: "3".to_string(),
@@ -111,6 +119,8 @@ mod tests {
                 reply_to_user: Some("someone".to_string()),
                 is_quote: false,
                 quoted_text: None,
+                likes: 45,
+                shares: 8,
             },
             Post {
                 id: "4".to_string(),
@@ -122,6 +132,8 @@ mod tests {
                 quoted_text: Some(
                     "whats the worst thing a therapist has ever said to you".to_string(),
                 ),
+                likes: 54321,
+                shares: 12345,
             },
         ]
     }

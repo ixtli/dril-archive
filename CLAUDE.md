@@ -85,7 +85,7 @@ bunx @biomejs/biome check --write site/app.js
 
 One JSON object per line:
 ```json
-{"id":"123","text":"...","created_at":"2014-03-12T15:30:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null}
+{"id":"123","text":"...","created_at":"2014-03-12T15:30:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null,"likes":42000,"shares":12000}
 ```
 
 Post URLs are derived from ID: `https://x.com/dril/status/{id}`

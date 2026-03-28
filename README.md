@@ -37,7 +37,7 @@ python3 -m http.server 8080 --directory site
 Each line of the input NDJSON file should look like:
 
 ```json
-{"id":"12345","text":"the post text","created_at":"2014-03-12T15:30:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null}
+{"id":"12345","text":"the post text","created_at":"2014-03-12T15:30:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null,"likes":42000,"shares":12000}
 ```
 
 The builder also accepts `-` to read from stdin.
