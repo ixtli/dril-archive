@@ -4,25 +4,35 @@ A static web app for fuzzy-searching @dril's post archive, distributable via CDN
 
 ## Architecture
 
-- **Builder** (`builder/`): Rust CLI that reads NDJSON post data and produces a SQLite database with FTS5 full-text search index
+- **Normalizer** (`normalizer/`): Rust CLI that reads source archives (e.g., codemasher/dril-archive JSON) and outputs NDJSON files via a pluggable `DataSource` trait
+- **Builder** (`builder/`): Rust CLI that reads NDJSON (single file or directory of 4 files) and produces a SQLite database with FTS5 full-text search index
 - **Frontend** (`site/`): Vanilla HTML/JS/CSS single-page app that loads the SQLite DB in-browser via `@sqlite.org/sqlite-wasm` and provides instant as-you-type search
 - **No backend server** — the entire app is static files
 
 ## Project Layout
 
 ```
+normalizer/        Rust CLI (Cargo workspace member)
+  src/main.rs      CLI entry point: --source, --input, --output-dir
+  src/source.rs    DataSource trait
+  src/codemasher.rs  CodmasherSource implementation
+  src/post.rs      Post type (Serialize + Deserialize)
 builder/           Rust CLI (Cargo workspace member)
-  src/main.rs      CLI entry point: reads NDJSON, writes .db
+  src/main.rs      CLI entry point: file or directory input
   src/post.rs      Post struct, NDJSON parser with dedup
   src/db.rs        SQLite schema creation, FTS5 indexing
+types/             Shared types crate
+  src/lib.rs       Repost, MediaItem, User structs
 site/              Static frontend (the deployable artifact)
   index.html       App shell with loading/search UI
   app.js           DB loading with progress, search, rendering
   style.css        Dark theme, minimal styling
-testdata/          Synthetic test fixtures
-  sample.ndjson    10 sample posts for development/testing
+testdata/          Test fixtures
+  sample.ndjson    10 sample posts (single-file mode)
+  dir-test/        Directory mode test fixtures (4 NDJSON files)
+  codemasher/      Minimal codemasher archive fixture
 data/              Raw + intermediate data (gitignored)
-docs/superpowers/  Design spec and implementation plan
+docs/superpowers/  Design specs and implementation plans
 ```
 
 ## Build & Run
@@ -43,8 +53,9 @@ python3 -m http.server 8080 --directory site
 ## Testing
 
 ```sh
-cargo test -p dril-builder    # 14 Rust tests (7 post parser + 7 db)
-bun run test:e2e              # 5 E2E browser tests (Playwright)
+cargo test -p dril-builder     # 18 Rust tests (7 post parser + 11 db)
+cargo test -p dril-normalizer  # 9 normalizer tests
+bun run test:e2e               # 5 E2E browser tests (Playwright)
 ```
 
 ## Dev Server
@@ -75,6 +86,7 @@ bunx @biomejs/biome check --write site/app.js
 
 | Component | Technology |
 |-----------|-----------|
+| Normalizer | Rust, `serde`/`serde_json`, `chrono`, `DataSource` trait |
 | Builder | Rust, `rusqlite` 0.39 (bundled FTS5), `serde`/`serde_json` |
 | Search index | SQLite FTS5 (prefix matching, sub-50ms queries) |
 | Frontend | Vanilla HTML/JS/CSS, `@sqlite.org/sqlite-wasm` (official SQLite WASM) |
@@ -91,11 +103,40 @@ bunx @biomejs/biome check --write site/app.js
 - `data/`, `site/dril.db`, and `site/sqlite3/` are gitignored (build artifacts)
 - `Cargo.lock` is committed (binary crate, reproducible builds)
 
+## Data Pipeline
+
+```
+source archive (e.g. codemasher .build/dril.json)
+  → dril-normalizer --source codemasher --input dril.json --output-dir data/
+  → data/{posts,reposts,media,users}.ndjson
+  → dril-builder data/ site/dril.db
+  → deploy site/
+```
+
+The builder also accepts a single NDJSON file for simple use: `dril-builder posts.ndjson output.db`
+
 ## Intermediate Data Format (NDJSON)
 
-One JSON object per line:
+The normalizer outputs 4 files:
+
+**posts.ndjson** — one JSON object per line:
 ```json
 {"id":"123","text":"...","created_at":"2014-03-12T15:30:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null,"likes":42000,"shares":12000}
+```
+
+**reposts.ndjson** — retweets with original content:
+```json
+{"id":"100","created_at":"...","original_post_id":"200","original_user_id":"300","original_text":"...","original_created_at":"...","likes":5000,"shares":1200}
+```
+
+**media.ndjson** — media attachments:
+```json
+{"post_id":"123","type":"photo","url":"https://...","width":1200,"height":800,"alt_text":"..."}
+```
+
+**users.ndjson** — user lookup:
+```json
+{"id":"16298441","screen_name":"dril","name":"wint"}
 ```
 
 Post URLs are derived from ID: `https://x.com/dril/status/{id}`
@@ -110,6 +151,7 @@ Post URLs are derived from ID: `https://x.com/dril/status/{id}`
 
 ## Not Yet Implemented
 
-- **Normalizer**: Rust CLI to convert raw archive/API data to NDJSON (blocked on choosing data source)
-- **Data acquisition**: Finding a community dril post archive + Twitter API gap-fill
+- **Media rendering** in the frontend (data is captured in the DB)
+- **Repost display** in the frontend (data is captured in the DB)
+- **Twitter API gap-fill** normalizer source (2023-present, ~$100 one-time)
 - **Production deployment**: Static hosting setup

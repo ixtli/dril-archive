@@ -12,35 +12,25 @@ Type a word, get results instantly. The entire post corpus lives in a single SQL
 
 The deployable is the `site/` directory: `index.html`, `app.js`, `style.css`, `dril.db`, and `sqlite3/` (WASM runtime). Drop it on any static host.
 
-## Building
+## Data pipeline
 
-Requires [Rust](https://rustup.rs/).
-
-```sh
-cargo build --release -p dril-builder
-```
-
-Given a file of posts in NDJSON format (one JSON object per line):
+To ingest the [codemasher/dril-archive](https://github.com/codemasher/dril-archive):
 
 ```sh
-./target/release/dril-builder posts.ndjson site/dril.db
+# Clone the archive
+git clone https://github.com/codemasher/dril-archive.git /tmp/dril-archive
+
+# Normalize to NDJSON (posts, reposts, media, users)
+cargo run --release -p dril-normalizer -- \
+  --source codemasher \
+  --input /tmp/dril-archive/.build/dril.json \
+  --output-dir data/
+
+# Build the database
+cargo run --release -p dril-builder -- data/ site/dril.db
 ```
 
-Then serve `site/` with any HTTP server:
-
-```sh
-python3 -m http.server 8080 --directory site
-```
-
-## Post format
-
-Each line of the input NDJSON file should look like:
-
-```json
-{"id":"12345","text":"the post text","created_at":"2014-03-12T15:30:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null,"likes":42000,"shares":12000}
-```
-
-The builder also accepts `-` to read from stdin.
+The builder also accepts a single NDJSON file for simple use: `dril-builder posts.ndjson output.db`
 
 ## Development
 
@@ -65,7 +55,7 @@ pre-commit run --all-files
 
 ## Status
 
-The builder and search frontend are functional. Data acquisition (sourcing the actual post archive) is in progress.
+The normalizer, builder, and search frontend are functional. The [codemasher/dril-archive](https://github.com/codemasher/dril-archive) covers ~11,000 posts from 2008-2023. A gap-fill for 2023-present is planned.
 
 ## License
 
