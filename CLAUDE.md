@@ -5,7 +5,7 @@ A static web app for fuzzy-searching @dril's post archive, distributable via CDN
 ## Architecture
 
 - **Builder** (`builder/`): Rust CLI that reads NDJSON post data and produces a SQLite database with FTS5 full-text search index
-- **Frontend** (`site/`): Vanilla HTML/JS/CSS single-page app that loads the SQLite DB in-browser via sql.js (WASM) and provides instant as-you-type search
+- **Frontend** (`site/`): Vanilla HTML/JS/CSS single-page app that loads the SQLite DB in-browser via `@sqlite.org/sqlite-wasm` and provides instant as-you-type search
 - **No backend server** — the entire app is static files
 
 ## Project Layout
@@ -43,8 +43,17 @@ python3 -m http.server 8080 --directory site
 ## Testing
 
 ```sh
-cargo test -p dril-builder    # 14 tests (7 post parser + 7 db)
+cargo test -p dril-builder    # 14 Rust tests (7 post parser + 7 db)
+bun run test:e2e              # 5 E2E browser tests (Playwright)
 ```
+
+## Dev Server
+
+```sh
+bun run dev                   # Build test DB + serve site on localhost:3000
+```
+
+The dev script (`scripts/dev.ts`) copies SQLite WASM files from `node_modules` to `site/sqlite3/`, builds the test DB if needed, and serves the site.
 
 ## Code Quality
 
@@ -68,7 +77,8 @@ bunx @biomejs/biome check --write site/app.js
 |-----------|-----------|
 | Builder | Rust, `rusqlite` 0.39 (bundled FTS5), `serde`/`serde_json` |
 | Search index | SQLite FTS5 (prefix matching, sub-50ms queries) |
-| Frontend | Vanilla HTML/JS/CSS, sql.js 1.13.0 (WASM) |
+| Frontend | Vanilla HTML/JS/CSS, `@sqlite.org/sqlite-wasm` (official SQLite WASM) |
+| E2E Testing | Playwright (headless Chromium) |
 | Formatting/Linting | Biome via bun, cargo fmt, clippy |
 | Git hooks | pre-commit framework |
 
@@ -78,7 +88,7 @@ bunx @biomejs/biome check --write site/app.js
 - Commit messages: `type(scope): description` (e.g., `feat(builder):`, `fix:`, `chore:`)
 - Frontend uses tabs (biome default), Rust uses spaces (rustfmt default)
 - No frameworks, no build step for frontend — just static files
-- `data/` and `site/dril.db` are gitignored (build artifacts)
+- `data/`, `site/dril.db`, and `site/sqlite3/` are gitignored (build artifacts)
 - `Cargo.lock` is committed (binary crate, reproducible builds)
 
 ## Intermediate Data Format (NDJSON)

@@ -7,7 +7,7 @@ Type a word, get results instantly. The entire post corpus lives in a single SQL
 ## How it works
 
 1. A Rust CLI ingests posts as NDJSON and builds a SQLite database with a full-text search index (FTS5)
-2. A static web page downloads that database and opens it in-browser using [sql.js](https://github.com/sql-js/sql.js)
+2. A static web page downloads that database and opens it in-browser using the [official SQLite WASM build](https://sqlite.org/wasm)
 3. Every keystroke fires a prefix-matched FTS5 query — results appear in under 50ms
 
 The whole thing ships as four files: `index.html`, `app.js`, `style.css`, and `dril.db`. Drop them on any static host.
@@ -44,14 +44,22 @@ The builder also accepts `-` to read from stdin.
 
 ## Development
 
+Requires [Bun](https://bun.sh/) for the dev server and E2E tests.
+
 ```sh
-# Run tests
+# Install JS dependencies (one-time)
+bun install && bunx playwright install chromium
+
+# Start dev server (builds test DB + serves site)
+bun run dev
+
+# Run Rust tests
 cargo test
 
-# Build a test database from sample data
-cargo run -p dril-builder -- testdata/sample.ndjson site/dril.db
+# Run E2E browser tests
+bun run test:e2e
 
-# Check formatting and lints (requires pre-commit, bun)
+# Check formatting and lints (requires pre-commit)
 pre-commit run --all-files
 ```
 
