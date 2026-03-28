@@ -12,3 +12,6 @@ playwright-report/
 theme-extractor/data/
 theme-extractor/node_modules/
 theme-extractor/dist/
+site/dist/
+site/node_modules/
+site/public/sqlite3/
