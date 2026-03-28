@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { Post } from "../lib/types";
-	import { postUrl } from "../lib/search";
 
 	interface Props {
 		post: Post;
@@ -15,8 +14,6 @@
 			day: "numeric",
 		}),
 	);
-
-	let url = $derived(postUrl(post.platform, post.id));
 </script>
 
 <article class="twitter-modern-card">
@@ -50,9 +47,6 @@
 				<span class="engagement-item">
 					<span class="engagement-count">{post.shares.toLocaleString()}</span> Reposts
 				</span>
-			</div>
-			<div class="meta">
-				<a href={url} target="_blank" rel="noopener" class="view-link"> view original </a>
 			</div>
 		</div>
 	</div>
@@ -171,22 +165,7 @@
 		color: rgb(15, 20, 25);
 	}
 
-	.meta {
-		margin-top: 4px;
-		font-size: 13px;
-	}
-
-	.view-link {
-		color: #1d9bf0;
-		text-decoration: none;
-	}
-
-	.view-link:hover {
-		text-decoration: underline;
-	}
-
 	@media (max-width: 639px) {
-		.meta,
 		.handle,
 		.separator,
 		.timestamp,

@@ -1,22 +1,11 @@
 <script lang="ts">
 	import type { Post } from "../lib/types";
-	import { postUrl } from "../lib/search";
 
 	interface Props {
 		post: Post;
 	}
 
 	let { post }: Props = $props();
-
-	let formattedDate = $derived(
-		new Date(post.created_at).toLocaleDateString("en-US", {
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-		}),
-	);
-
-	let url = $derived(postUrl(post.platform, post.id));
 </script>
 
 <article class="twitter-classic-card">
@@ -41,11 +30,6 @@
 					<div class="quoted-text">{post.quoted_text}</div>
 				</div>
 			{/if}
-			<div class="meta">
-				<span class="timestamp">{formattedDate}</span>
-				<span class="separator">&middot;</span>
-				<a href={url} target="_blank" rel="noopener" class="view-link"> view original </a>
-			</div>
 			<div class="engagement">
 				<span class="engagement-item">{post.likes.toLocaleString()} likes</span>
 				<span class="engagement-item">{post.shares.toLocaleString()} shares</span>
@@ -134,25 +118,6 @@
 		color: #666;
 	}
 
-	.meta {
-		margin-top: 6px;
-		font-size: 11px;
-		color: #999;
-	}
-
-	.separator {
-		margin: 0 4px;
-	}
-
-	.view-link {
-		color: #0084b4;
-		text-decoration: none;
-	}
-
-	.view-link:hover {
-		text-decoration: underline;
-	}
-
 	.engagement {
 		margin-top: 4px;
 		font-size: 11px;
@@ -162,8 +127,6 @@
 	}
 
 	@media (max-width: 639px) {
-		.meta,
-		.separator,
 		.engagement {
 			font-size: 10px;
 		}

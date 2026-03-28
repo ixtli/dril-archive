@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { Post } from "../lib/types";
-	import { postUrl } from "../lib/search";
 
 	interface Props {
 		post: Post;
@@ -15,8 +14,6 @@
 			day: "numeric",
 		}),
 	);
-
-	let url = $derived(postUrl(post.platform, post.id));
 </script>
 
 <article class="bluesky-card">
@@ -46,9 +43,6 @@
 			<div class="engagement">
 				<span class="engagement-item">{post.likes.toLocaleString()} likes</span>
 				<span class="engagement-item">{post.shares.toLocaleString()} reposts</span>
-			</div>
-			<div class="meta">
-				<a href={url} target="_blank" rel="noopener" class="view-link">view original</a>
 			</div>
 		</div>
 	</div>
@@ -150,22 +144,7 @@
 		gap: 14px;
 	}
 
-	.meta {
-		margin-top: 4px;
-		font-size: 13px;
-	}
-
-	.view-link {
-		color: #0085ff;
-		text-decoration: none;
-	}
-
-	.view-link:hover {
-		text-decoration: underline;
-	}
-
 	@media (max-width: 639px) {
-		.meta,
 		.handle,
 		.separator,
 		.timestamp,
