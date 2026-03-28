@@ -7,27 +7,49 @@
 	}
 
 	let { post }: Props = $props();
+
+	let formattedDate = $derived(
+		new Date(post.created_at).toLocaleDateString("en-US", {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+		}),
+	);
+
+	let url = $derived(postUrl(post.platform, post.id));
 </script>
 
 <article class="bluesky-card">
-	<div class="card-body">
-		{#if post.is_reply && post.reply_to_user}
-			<div class="reply-context">replying to @{post.reply_to_user}</div>
-		{/if}
-		<div class="header">
-			<span class="display-name">@dril.bsky.social</span>
-			<span class="separator">&middot;</span>
-			<span class="timestamp">
-				{new Date(post.created_at).toLocaleDateString("en-US", {
-					year: "numeric",
-					month: "short",
-					day: "numeric",
-				})}
-			</span>
+	{#if post.is_reply && post.reply_to_user}
+		<div class="reply-context">
+			Reply to @{post.reply_to_user}
 		</div>
-		<div class="text">{post.text}</div>
-		<div class="footer">
-			<a href={postUrl(post.platform, post.id)} target="_blank" rel="noopener"> view original </a>
+	{/if}
+
+	<div class="card-layout">
+		<div class="avatar-col">
+			<div class="avatar-placeholder"></div>
+		</div>
+		<div class="content-col">
+			<div class="header">
+				<span class="display-name">dril</span>
+				<span class="handle">@dril.bsky.social</span>
+				<span class="separator">&middot;</span>
+				<span class="timestamp">{formattedDate}</span>
+			</div>
+			<div class="text">{post.text}</div>
+			{#if post.is_quote && post.quoted_text}
+				<div class="quoted">
+					<div class="quoted-text">{post.quoted_text}</div>
+				</div>
+			{/if}
+			<div class="engagement">
+				<span class="engagement-item">{post.likes.toLocaleString()} likes</span>
+				<span class="engagement-item">{post.shares.toLocaleString()} reposts</span>
+			</div>
+			<div class="meta">
+				<a href={url} target="_blank" rel="noopener" class="view-link">view original</a>
+			</div>
 		</div>
 	</div>
 </article>
@@ -40,24 +62,60 @@
 		padding: 14px 16px;
 		font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 		color: #1a1a1a;
+		margin-bottom: 8px;
 	}
 
 	.reply-context {
 		color: #8a8a8a;
 		font-size: 13px;
 		margin-bottom: 4px;
+		padding-left: 52px;
+	}
+
+	.card-layout {
+		display: flex;
+		gap: 10px;
+	}
+
+	.avatar-col {
+		flex-shrink: 0;
+	}
+
+	.avatar-placeholder {
+		width: 42px;
+		height: 42px;
+		border-radius: 50%;
+		background: #d6e6f7;
+	}
+
+	.content-col {
+		flex: 1;
+		min-width: 0;
 	}
 
 	.header {
-		margin-bottom: 4px;
+		display: flex;
+		align-items: baseline;
+		gap: 4px;
+		margin-bottom: 2px;
 	}
 
 	.display-name {
 		font-weight: 600;
 		font-size: 15px;
+		color: #1a1a1a;
 	}
 
-	.separator,
+	.handle {
+		color: #8a8a8a;
+		font-size: 14px;
+	}
+
+	.separator {
+		color: #8a8a8a;
+		font-size: 13px;
+	}
+
 	.timestamp {
 		color: #8a8a8a;
 		font-size: 13px;
@@ -67,19 +125,42 @@
 		font-size: 15px;
 		line-height: 21px;
 		white-space: pre-wrap;
+		word-wrap: break-word;
 	}
 
-	.footer {
+	.quoted {
+		border: 1px solid #d6d6d6;
+		border-radius: 8px;
+		padding: 10px 12px;
 		margin-top: 8px;
+		background: #f9f9f9;
+	}
+
+	.quoted-text {
+		font-size: 14px;
+		line-height: 19px;
+		color: #555;
+	}
+
+	.engagement {
+		margin-top: 8px;
+		font-size: 13px;
+		color: #8a8a8a;
+		display: flex;
+		gap: 14px;
+	}
+
+	.meta {
+		margin-top: 4px;
 		font-size: 13px;
 	}
 
-	.footer a {
+	.view-link {
 		color: #0085ff;
 		text-decoration: none;
 	}
 
-	.footer a:hover {
+	.view-link:hover {
 		text-decoration: underline;
 	}
 </style>
