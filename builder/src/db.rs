@@ -198,6 +198,7 @@ mod tests {
         vec![
             Post {
                 id: "1".to_string(),
+                platform: "x".to_string(),
                 text: "no".to_string(),
                 created_at: "2008-09-15T12:00:00Z".to_string(),
                 is_reply: false,
@@ -209,6 +210,7 @@ mod tests {
             },
             Post {
                 id: "2".to_string(),
+                platform: "x".to_string(),
                 text: "the wise man bowed his head solemnly and spoke: theres actually zero difference between good and bad things. you imbecile. you fucking moron".to_string(),
                 created_at: "2014-11-12T18:30:00Z".to_string(),
                 is_reply: false,
@@ -220,6 +222,7 @@ mod tests {
             },
             Post {
                 id: "3".to_string(),
+                platform: "x".to_string(),
                 text: "@someone you are like a little baby. watch this".to_string(),
                 created_at: "2015-03-08T09:00:00Z".to_string(),
                 is_reply: true,
@@ -231,6 +234,7 @@ mod tests {
             },
             Post {
                 id: "4".to_string(),
+                platform: "x".to_string(),
                 text: "THERAPIST: your problem is, that youre perfect".to_string(),
                 created_at: "2016-05-19T07:45:00Z".to_string(),
                 is_reply: false,
@@ -380,6 +384,7 @@ mod tests {
         vec![
             Repost {
                 id: "100".to_string(),
+                platform: "x".to_string(),
                 created_at: "2023-01-15T10:00:00Z".to_string(),
                 original_post_id: "200".to_string(),
                 original_user_id: "300".to_string(),
@@ -390,6 +395,7 @@ mod tests {
             },
             Repost {
                 id: "101".to_string(),
+                platform: "x".to_string(),
                 created_at: "2023-02-20T14:30:00Z".to_string(),
                 original_post_id: "201".to_string(),
                 original_user_id: "301".to_string(),
@@ -434,16 +440,19 @@ mod tests {
         vec![
             User {
                 id: "16298441".to_string(),
+                platform: "x".to_string(),
                 screen_name: "dril".to_string(),
                 name: Some("wint".to_string()),
             },
             User {
                 id: "300".to_string(),
+                platform: "x".to_string(),
                 screen_name: "someone".to_string(),
                 name: Some("Some Person".to_string()),
             },
             User {
                 id: "301".to_string(),
+                platform: "x".to_string(),
                 screen_name: "another".to_string(),
                 name: None,
             },

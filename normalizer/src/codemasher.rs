@@ -75,6 +75,7 @@ impl DataSource for CodmasherSource {
             let quoted_text = tweet.quoted_status.as_ref().map(|qs| qs.text.clone());
             posts.push(Post {
                 id: tweet.id.to_string(),
+                platform: "x".to_string(),
                 text: tweet.text.clone(),
                 created_at: unix_to_iso(tweet.created_at),
                 is_reply: tweet.in_reply_to_status_id.is_some(),
@@ -107,6 +108,7 @@ impl DataSource for CodmasherSource {
                 };
             reposts.push(Repost {
                 id: tweet.id.to_string(),
+                platform: "x".to_string(),
                 created_at: unix_to_iso(tweet.created_at),
                 original_post_id: tweet.retweeted_status_id.unwrap().to_string(),
                 original_user_id,
@@ -144,6 +146,7 @@ impl DataSource for CodmasherSource {
         for user in &self.archive.users {
             seen.entry(user.id).or_insert_with(|| User {
                 id: user.id.to_string(),
+                platform: "x".to_string(),
                 screen_name: user.screen_name.clone(),
                 name: user.name.clone(),
             });

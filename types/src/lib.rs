@@ -1,8 +1,14 @@
 use serde::{Deserialize, Serialize};
 
+fn default_platform() -> String {
+    "x".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Repost {
     pub id: String,
+    #[serde(default = "default_platform")]
+    pub platform: String,
     pub created_at: String,
     pub original_post_id: String,
     pub original_user_id: String,
@@ -26,6 +32,8 @@ pub struct MediaItem {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct User {
     pub id: String,
+    #[serde(default = "default_platform")]
+    pub platform: String,
     pub screen_name: String,
     pub name: Option<String>,
 }
