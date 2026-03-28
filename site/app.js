@@ -99,6 +99,17 @@ function buildQuery(input) {
 	return terms.join(" ");
 }
 
+function postUrl(platform, id) {
+	switch (platform) {
+		case "threads":
+			return `https://www.threads.com/@dril/post/${id}`;
+		case "bsky":
+			return `https://bsky.app/profile/dril.bsky.social/post/${id}`;
+		default:
+			return `https://x.com/dril/status/${id}`;
+	}
+}
+
 function search(input) {
 	if (!db) return;
 	const query = buildQuery(input);
@@ -109,7 +120,7 @@ function search(input) {
 
 	try {
 		const stmt = db.prepare(
-			`SELECT t.id, t.text, t.created_at, t.is_reply, t.reply_to_user
+			`SELECT t.id, t.text, t.created_at, t.is_reply, t.reply_to_user, t.platform
 			 FROM posts_fts f
 			 JOIN posts t ON t.rowid = f.rowid
 			 WHERE posts_fts MATCH ?
@@ -120,8 +131,9 @@ function search(input) {
 			stmt.bind([query]);
 			let html = "";
 			while (stmt.step()) {
-				const [id, text, created_at, is_reply, reply_to_user] = stmt.get([]);
-				const url = `https://x.com/dril/status/${id}`;
+				const [id, text, created_at, is_reply, reply_to_user, platform] =
+					stmt.get([]);
+				const url = postUrl(platform, id);
 
 				html += `<div class="post">`;
 				if (is_reply && reply_to_user) {
@@ -131,9 +143,7 @@ function search(input) {
 				}
 				html += `<div class="post-text">${escapeHtml(text)}</div>`;
 				html += `<div class="post-meta">`;
-				html += `${formatDate(
-					created_at,
-				)} · <a href="${url}" target="_blank" rel="noopener">view on X</a>`;
+				html += `${formatDate(created_at)} · ${escapeHtml(platform)} · <a href="${url}" target="_blank" rel="noopener">view original</a>`;
 				html += `</div></div>`;
 			}
 
