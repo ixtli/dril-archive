@@ -99,17 +99,17 @@ impl DataSource for CodmasherSource {
                 match &tweet.retweeted_status {
                     Some(rt) => (
                         rt.text.clone(),
-                        unix_to_iso(rt.created_at),
-                        rt.user_id.to_string(),
+                        Some(unix_to_iso(rt.created_at)),
+                        Some(rt.user_id.to_string()),
                         rt.like_count,
                         rt.retweet_count,
                     ),
-                    None => (String::new(), String::new(), String::new(), 0, 0),
+                    None => (String::new(), None, None, 0, 0),
                 };
             reposts.push(Repost {
-                id: tweet.id.to_string(),
+                id: Some(tweet.id.to_string()),
                 platform: "x".to_string(),
-                created_at: unix_to_iso(tweet.created_at),
+                created_at: Some(unix_to_iso(tweet.created_at)),
                 original_post_id: tweet.retweeted_status_id.unwrap().to_string(),
                 original_user_id,
                 original_text,
@@ -218,9 +218,9 @@ mod tests {
         let source = load_test_source();
         let reposts = source.reposts().unwrap();
         assert_eq!(reposts.len(), 1);
-        assert_eq!(reposts[0].id, "9999999999");
+        assert_eq!(reposts[0].id.as_deref(), Some("9999999999"));
         assert_eq!(reposts[0].original_post_id, "8888888888");
-        assert_eq!(reposts[0].original_user_id, "77777");
+        assert_eq!(reposts[0].original_user_id.as_deref(), Some("77777"));
         assert_eq!(
             reposts[0].original_text,
             "this is the funniest thing ive ever seen"
@@ -257,6 +257,6 @@ mod tests {
         assert_eq!(posts[0].id, "1234567890");
 
         let reposts = source.reposts().unwrap();
-        assert_eq!(reposts[0].id, "9999999999");
+        assert_eq!(reposts[0].id.as_deref(), Some("9999999999"));
     }
 }

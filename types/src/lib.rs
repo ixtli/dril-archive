@@ -6,14 +6,14 @@ fn default_platform() -> String {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Repost {
-    pub id: String,
+    pub id: Option<String>,
     #[serde(default = "default_platform")]
     pub platform: String,
-    pub created_at: String,
+    pub created_at: Option<String>,
     pub original_post_id: String,
-    pub original_user_id: String,
+    pub original_user_id: Option<String>,
     pub original_text: String,
-    pub original_created_at: String,
+    pub original_created_at: Option<String>,
     pub likes: u64,
     pub shares: u64,
 }

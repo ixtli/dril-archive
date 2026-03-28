@@ -29,11 +29,11 @@ pub fn create_db(path: &std::path::Path) -> Result<Connection, String> {
         CREATE TABLE reposts (
             id TEXT PRIMARY KEY,
             platform TEXT NOT NULL DEFAULT 'x',
-            created_at TEXT NOT NULL,
+            created_at TEXT,
             original_post_id TEXT NOT NULL,
-            original_user_id TEXT NOT NULL,
+            original_user_id TEXT,
             original_text TEXT NOT NULL,
-            original_created_at TEXT NOT NULL,
+            original_created_at TEXT,
             likes INTEGER NOT NULL DEFAULT 0,
             shares INTEGER NOT NULL DEFAULT 0
         );
@@ -117,8 +117,12 @@ pub fn insert_reposts(conn: &Connection, reposts: &[dril_types::Repost]) -> Resu
         .map_err(|e| format!("prepare repost insert: {e}"))?;
 
     for repost in reposts {
+        let synthetic_id = repost
+            .id
+            .clone()
+            .unwrap_or_else(|| format!("repost-{}", repost.original_post_id));
         stmt.execute(rusqlite::params![
-            repost.id,
+            synthetic_id,
             repost.platform,
             repost.created_at,
             repost.original_post_id,
@@ -128,7 +132,7 @@ pub fn insert_reposts(conn: &Connection, reposts: &[dril_types::Repost]) -> Resu
             repost.likes as i64,
             repost.shares as i64,
         ])
-        .map_err(|e| format!("insert repost {}: {e}", repost.id))?;
+        .map_err(|e| format!("insert repost {}: {e}", synthetic_id))?;
     }
 
     conn.execute_batch("COMMIT;")
@@ -393,24 +397,24 @@ mod tests {
     fn sample_reposts() -> Vec<Repost> {
         vec![
             Repost {
-                id: "100".to_string(),
+                id: Some("100".to_string()),
                 platform: "x".to_string(),
-                created_at: "2023-01-15T10:00:00Z".to_string(),
+                created_at: Some("2023-01-15T10:00:00Z".to_string()),
                 original_post_id: "200".to_string(),
-                original_user_id: "300".to_string(),
+                original_user_id: Some("300".to_string()),
                 original_text: "some funny tweet dril retweeted".to_string(),
-                original_created_at: "2023-01-14T08:00:00Z".to_string(),
+                original_created_at: Some("2023-01-14T08:00:00Z".to_string()),
                 likes: 5000,
                 shares: 1200,
             },
             Repost {
-                id: "101".to_string(),
+                id: Some("101".to_string()),
                 platform: "x".to_string(),
-                created_at: "2023-02-20T14:30:00Z".to_string(),
+                created_at: Some("2023-02-20T14:30:00Z".to_string()),
                 original_post_id: "201".to_string(),
-                original_user_id: "301".to_string(),
+                original_user_id: Some("301".to_string()),
                 original_text: "another retweet".to_string(),
-                original_created_at: "2023-02-19T12:00:00Z".to_string(),
+                original_created_at: Some("2023-02-19T12:00:00Z".to_string()),
                 likes: 300,
                 shares: 50,
             },
