@@ -111,9 +111,9 @@
 		try {
 			const stmt = db.prepare(
 				`SELECT t.id, t.text, t.created_at, t.is_reply, t.reply_to_user
-                 FROM tweets_fts f
-                 JOIN tweets t ON t.rowid = f.rowid
-                 WHERE tweets_fts MATCH ?
+                 FROM posts_fts f
+                 JOIN posts t ON t.rowid = f.rowid
+                 WHERE posts_fts MATCH ?
                  ORDER BY rank
                  LIMIT 50`,
 			);
@@ -124,14 +124,14 @@
 				const [id, text, created_at, is_reply, reply_to_user] = stmt.get();
 				const url = `https://x.com/dril/status/${id}`;
 
-				html += `<div class="tweet">`;
+				html += `<div class="post">`;
 				if (is_reply && reply_to_user) {
-					html += `<div class="tweet-reply-to">replying to @${escapeHtml(
+					html += `<div class="post-reply-to">replying to @${escapeHtml(
 						reply_to_user,
 					)}</div>`;
 				}
-				html += `<div class="tweet-text">${escapeHtml(text)}</div>`;
-				html += `<div class="tweet-meta">`;
+				html += `<div class="post-text">${escapeHtml(text)}</div>`;
+				html += `<div class="post-meta">`;
 				html += `${formatDate(
 					created_at,
 				)} · <a href="${url}" target="_blank" rel="noopener">view on X</a>`;

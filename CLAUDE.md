@@ -1,10 +1,10 @@
 # dril-archive
 
-A static web app for fuzzy-searching @dril's tweet archive, distributable via CDN.
+A static web app for fuzzy-searching @dril's post archive, distributable via CDN.
 
 ## Architecture
 
-- **Builder** (`builder/`): Rust CLI that reads NDJSON tweet data and produces a SQLite database with FTS5 full-text search index
+- **Builder** (`builder/`): Rust CLI that reads NDJSON post data and produces a SQLite database with FTS5 full-text search index
 - **Frontend** (`site/`): Vanilla HTML/JS/CSS single-page app that loads the SQLite DB in-browser via sql.js (WASM) and provides instant as-you-type search
 - **No backend server** — the entire app is static files
 
@@ -13,14 +13,14 @@ A static web app for fuzzy-searching @dril's tweet archive, distributable via CD
 ```
 builder/           Rust CLI (Cargo workspace member)
   src/main.rs      CLI entry point: reads NDJSON, writes .db
-  src/tweet.rs     Tweet struct, NDJSON parser with dedup
+  src/post.rs      Post struct, NDJSON parser with dedup
   src/db.rs        SQLite schema creation, FTS5 indexing
 site/              Static frontend (the deployable artifact)
   index.html       App shell with loading/search UI
   app.js           DB loading with progress, search, rendering
   style.css        Dark theme, minimal styling
 testdata/          Synthetic test fixtures
-  sample.ndjson    10 sample tweets for development/testing
+  sample.ndjson    10 sample posts for development/testing
 data/              Raw + intermediate data (gitignored)
 docs/superpowers/  Design spec and implementation plan
 ```
@@ -34,7 +34,7 @@ cargo build --release -p dril-builder
 # Generate the database from NDJSON
 ./target/release/dril-builder <input.ndjson> [output.db]
 # or from stdin:
-cat tweets.ndjson | ./target/release/dril-builder - site/dril.db
+cat posts.ndjson | ./target/release/dril-builder - site/dril.db
 
 # Serve the site locally
 python3 -m http.server 8080 --directory site
@@ -43,7 +43,7 @@ python3 -m http.server 8080 --directory site
 ## Testing
 
 ```sh
-cargo test -p dril-builder    # 14 tests (7 tweet parser + 7 db)
+cargo test -p dril-builder    # 14 tests (7 post parser + 7 db)
 ```
 
 ## Code Quality
@@ -88,10 +88,10 @@ One JSON object per line:
 {"id":"123","text":"...","created_at":"2014-03-12T15:30:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null}
 ```
 
-Tweet URLs are derived from ID: `https://x.com/dril/status/{id}`
+Post URLs are derived from ID: `https://x.com/dril/status/{id}`
 
 ## Not Yet Implemented
 
 - **Normalizer**: Rust CLI to convert raw archive/API data to NDJSON (blocked on choosing data source)
-- **Data acquisition**: Finding a community dril tweet archive + Twitter API gap-fill
+- **Data acquisition**: Finding a community dril post archive + Twitter API gap-fill
 - **Production deployment**: Static hosting setup

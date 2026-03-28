@@ -1,5 +1,5 @@
 mod db;
-mod tweet;
+mod post;
 
 use std::fs::File;
 use std::io::{self, BufReader};
@@ -19,7 +19,7 @@ fn run() -> Result<(), String> {
         PathBuf::from("dril.db")
     };
 
-    eprintln!("Reading tweets from {input_path}...");
+    eprintln!("Reading posts from {input_path}...");
     let reader: Box<dyn io::BufRead> = if input_path == "-" {
         Box::new(BufReader::new(io::stdin()))
     } else {
@@ -27,18 +27,18 @@ fn run() -> Result<(), String> {
         Box::new(BufReader::new(file))
     };
 
-    let tweets = tweet::parse_ndjson(reader)?;
-    eprintln!("Parsed {} tweets", tweets.len());
+    let posts = post::parse_ndjson(reader)?;
+    eprintln!("Parsed {} posts", posts.len());
 
     if output_path.exists() {
         std::fs::remove_file(&output_path).map_err(|e| format!("remove existing db: {e}"))?;
     }
 
     let conn = db::create_db(&output_path)?;
-    let count = db::insert_tweets(&conn, &tweets)?;
+    let count = db::insert_posts(&conn, &posts)?;
     db::finalize(&conn)?;
 
-    eprintln!("Built {} with {count} tweets", output_path.display());
+    eprintln!("Built {} with {count} posts", output_path.display());
     Ok(())
 }
 
