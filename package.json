@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "bun scripts/dev.ts",
+    "dev:full": "bun scripts/dev-full.ts",
     "build": "cd site && bunx vite build",
     "build:testdb": "cargo run -p dril-builder -- testdata/sample.ndjson site/vendor/dril.db",
     "test:e2e": "bunx playwright test"
