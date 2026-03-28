@@ -7,10 +7,10 @@ Type a word, get results instantly. The entire post corpus lives in a single SQL
 ## How it works
 
 1. A Rust CLI ingests posts as NDJSON and builds a SQLite database with a full-text search index (FTS5)
-2. A static web page downloads that database and opens it in-browser using the [official SQLite WASM build](https://sqlite.org/wasm)
-3. Every keystroke fires a prefix-matched FTS5 query — results appear in under 50ms
+2. A Svelte 5 + Vite frontend downloads that database and opens it in-browser using the [official SQLite WASM build](https://sqlite.org/wasm)
+3. Every keystroke fires a prefix-matched FTS5 query — results appear in under 50ms with era-accurate post cards (matching each Twitter design era + Bluesky + Threads)
 
-The deployable is the `site/` directory: `index.html`, `app.js`, `style.css`, `dril.db`, and `sqlite3/` (WASM runtime). Drop it on any static host.
+The deployable is `site/dist/` (built by Vite). Drop it on any static host.
 
 ## Data pipeline
 
@@ -34,24 +34,29 @@ The builder also accepts a single NDJSON file for simple use: `dril-builder post
 
 ## Development
 
-Requires [Bun](https://bun.sh/) for the dev server and E2E tests.
+Requires [Bun](https://bun.sh/) for the dev server, build, and E2E tests.
 
 ```sh
 # Install JS dependencies (one-time)
 bun install && bunx playwright install chromium
 
-# Start dev server (builds test DB + serves site)
+# Start Vite dev server (builds test DB + starts on localhost:5173)
 bun run dev
 
-# Run Rust tests
+# Production build
+bun run build
+
+# Run Rust tests (28 tests)
 cargo test
 
-# Run E2E browser tests
+# Run E2E browser tests (14 Playwright tests)
 bun run test:e2e
 
 # Check formatting and lints (requires pre-commit)
 pre-commit run --all-files
 ```
+
+**Formatting:** `.svelte` files use Prettier (Biome has no Svelte support). Everything else uses Biome. The pre-commit hooks enforce both automatically.
 
 ## Data sources
 
@@ -91,7 +96,7 @@ All extraction is manual, rate-limited (10s between page loads), and resumable. 
 
 ## Status
 
-The archive covers 2008 through present across X and Bluesky (~12,800 posts). Bluesky syncs daily. The X data has a known thin spot in late 2023. Theme extraction tooling is built; frontend integration of era-accurate post styling is in progress.
+The archive covers 2008 through present across X and Bluesky (~12,800 posts). Bluesky syncs daily. The X data has a known thin spot in late 2023. The frontend renders each post in its era-accurate style (Twitter Classic, New, Material, Modern, Bluesky, Threads).
 
 ## License
 
