@@ -61,7 +61,7 @@
 		padding: 12px 16px;
 		font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 		color: #14171a;
-		margin-bottom: 0;
+		margin-bottom: 8px;
 	}
 
 	.reply-context {

@@ -59,7 +59,7 @@
 		padding: 16px;
 		font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 		color: #000;
-		margin-bottom: 0;
+		margin-bottom: 8px;
 	}
 
 	.reply-context {
