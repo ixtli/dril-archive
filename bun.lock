@@ -3,6 +3,9 @@
   "workspaces": {
     "": {
       "name": "dril-archive",
+      "dependencies": {
+        "@sqlite.org/sqlite-wasm": "^3.51.2-build8",
+      },
       "devDependencies": {
         "@playwright/test": "^1.52",
       },
@@ -10,6 +13,8 @@
   },
   "packages": {
     "@playwright/test": ["@playwright/test@1.58.2", "", { "dependencies": { "playwright": "1.58.2" }, "bin": { "playwright": "cli.js" } }, "sha512-akea+6bHYBBfA9uQqSYmlJXn61cTa+jbO87xVLCWbTqbWadRVmhxlXATaOjOgcBaWU4ePo0wB41KMFv3o35IXA=="],
+
+    "@sqlite.org/sqlite-wasm": ["@sqlite.org/sqlite-wasm@3.51.2-build8", "", {}, "sha512-NvWLTgbqGu1XOLKxePE5Jvc5bzy6QACAQLURQnumSFm0hQms09r2rjMp5i1rvh1DXCe5Rx1FEGcEeQ9BnBB2+Q=="],
 
     "fsevents": ["fsevents@2.3.2", "", { "os": "darwin" }, "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA=="],
 

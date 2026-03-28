@@ -1,6 +1,7 @@
 /target
 /data/
 /site/dril.db
+/site/sqlite3/
 node_modules/
 test-results/
 playwright-report/

@@ -8,5 +8,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.52"
+  },
+  "dependencies": {
+    "@sqlite.org/sqlite-wasm": "^3.51.2-build8"
   }
 }

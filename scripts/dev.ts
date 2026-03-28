@@ -1,10 +1,18 @@
 import { execSync } from "child_process";
-import { statSync } from "fs";
+import { mkdirSync, copyFileSync, statSync } from "fs";
 import { join } from "path";
 
-const SITE_DIR = join(import.meta.dir, "..", "site");
+const ROOT_DIR = join(import.meta.dir, "..");
+const SITE_DIR = join(ROOT_DIR, "site");
 const DB_PATH = join(SITE_DIR, "dril.db");
+const SQLITE3_DIR = join(SITE_DIR, "sqlite3");
 const PORT = 3000;
+
+// Copy SQLite WASM files from node_modules
+const SQLITE_SRC = join(ROOT_DIR, "node_modules/@sqlite.org/sqlite-wasm/dist");
+mkdirSync(SQLITE3_DIR, { recursive: true });
+copyFileSync(join(SQLITE_SRC, "index.mjs"), join(SQLITE3_DIR, "index.mjs"));
+copyFileSync(join(SQLITE_SRC, "sqlite3.wasm"), join(SQLITE3_DIR, "sqlite3.wasm"));
 
 // Build the test DB if it doesn't exist
 try {
@@ -14,7 +22,7 @@ try {
 	console.log("Building test database...");
 	execSync("cargo run -p dril-builder -- testdata/sample.ndjson site/dril.db", {
 		stdio: "inherit",
-		cwd: join(import.meta.dir, ".."),
+		cwd: ROOT_DIR,
 	});
 }
 

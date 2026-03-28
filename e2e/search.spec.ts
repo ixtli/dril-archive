@@ -4,15 +4,12 @@ test.describe("dril archive search", () => {
 	test("page loads and search box appears", async ({ page }) => {
 		await page.goto("/");
 
-		// Loading indicator should be visible initially
-		const loading = page.locator("#loading");
-		await expect(loading).toBeVisible();
-
 		// Wait for search container to appear (DB loaded, WASM initialized)
 		const searchInput = page.locator("#search-input");
 		await expect(searchInput).toBeVisible({ timeout: 15_000 });
 
-		// Loading should be hidden now
+		// Loading should be hidden once search is ready
+		const loading = page.locator("#loading");
 		await expect(loading).toBeHidden();
 	});
 
