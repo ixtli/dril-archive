@@ -18,14 +18,46 @@ Present dril's tweets styled as they appeared when originally posted by faithful
 - The X-era rebrand (dril was suspended before this solidified)
 - Interactive elements (like/retweet buttons are display-only)
 
-## Twitter Eras
+## Themes
 
-| Era | ID | Date Range | Key Visual Traits |
-|-----|----|------------|-------------------|
-| Classic | `classic` | 2008-06 – 2010-09 | Light blue (#c0deed) page background, white card, 12px Lucida Grande/Arial, 73×73 square avatar with 4px border-radius, gray (#999) metadata, #0084B4 links |
-| New Twitter | `new` | 2010-09 – 2014-06 | White/light gray (#f5f8fa) background, stream cards with bottom border, 14px Helvetica Neue, 48×48 rounded-square avatar, #292f33 text, #66757f metadata, #1da1f2-precursor links, inline engagement counts |
-| Material | `material` | 2014-06 – 2019-07 | Clean white cards, 15px Helvetica Neue/Arial, 48×48 circular avatar, #14171a text, #657786 metadata, #1da1f2 links, thin #e1e8ed borders, heart icon replaces star (Nov 2015) |
-| Modern | `modern` | 2019-07 – 2023-07 | Chirp font (falls back to -apple-system/Segoe UI), 15px, rounded 16px card borders, 40×48 circular avatar, #0f1419 text, #536471 metadata, #1d9bf0 links, more whitespace |
+### Theme IDs and Platform Scoping
+
+Theme IDs are prefixed by platform to avoid ambiguity, since the archive includes posts from Twitter/X, Bluesky, and Threads. The four Twitter eras are the initial themes; Bluesky and Threads themes can be added later using the same infrastructure.
+
+| Theme | ID | Platform | Date Range | Key Visual Traits |
+|-------|-----|----------|------------|-------------------|
+| Twitter Classic | `twitter-classic` | x | 2008-06 – 2010-09 | Light blue (#c0deed) page background, white card, 12px Lucida Grande/Arial, 73×73 square avatar with 4px border-radius, gray (#999) metadata, #0084B4 links |
+| Twitter New | `twitter-new` | x | 2010-09 – 2014-06 | White/light gray (#f5f8fa) background, stream cards with bottom border, 14px Helvetica Neue, 48×48 rounded-square avatar, #292f33 text, #66757f metadata, #1da1f2-precursor links, inline engagement counts |
+| Twitter Material | `twitter-material` | x | 2014-06 – 2019-07 | Clean white cards, 15px Helvetica Neue/Arial, 48×48 circular avatar, #14171a text, #657786 metadata, #1da1f2 links, thin #e1e8ed borders, heart icon replaces star (Nov 2015) |
+| Twitter Modern | `twitter-modern` | x | 2019-07 – 2023-07 | Chirp font (falls back to -apple-system/Segoe UI), 15px, rounded 16px card borders, 40×48 circular avatar, #0f1419 text, #536471 metadata, #1d9bf0 links, more whitespace |
+
+Future themes (not in scope for this work):
+
+| Theme | ID | Platform | Notes |
+|-------|-----|----------|-------|
+| Bluesky | `bsky-default` | bsky | Current Bluesky design |
+| Threads | `threads-default` | threads | Current Threads design |
+
+### Auto-Theme Resolution
+
+Each post has a `platform` and a `created_at`. The auto-theme logic picks the era-correct theme for that platform:
+
+```js
+function getAutoTheme(platform, createdAt) {
+  if (platform === "bsky") return "bsky-default";     // future
+  if (platform === "threads") return "threads-default"; // future
+  // platform === "x"
+  const d = new Date(createdAt);
+  if (d < new Date("2010-09-01")) return "twitter-classic";
+  if (d < new Date("2014-06-01")) return "twitter-new";
+  if (d < new Date("2019-07-15")) return "twitter-material";
+  return "twitter-modern";
+}
+```
+
+### Cross-Platform Theme Application
+
+Users can apply **any** theme to **any** post — e.g., view a Bluesky post styled as Twitter Classic, or a 2009 tweet styled as Twitter Modern. The theme selector makes all themes available regardless of the current post's platform. The "Auto" option uses era-correct matching per platform.
 
 ## Wayback Machine Extraction
 
@@ -64,7 +96,7 @@ Rather than picking random tweets, we use the existing archive data (posts, repo
 
 ```json
 {
-  "classic": {
+  "twitter-classic": {
     "plain": { "post_id": "12345", "wayback_timestamp": "20090815123456", "created_at": "2009-08-15T..." },
     "reply": { "post_id": "12346", "wayback_timestamp": "20091201...", "created_at": "..." },
     "quote": null,
@@ -72,9 +104,9 @@ Rather than picking random tweets, we use the existing archive data (posts, repo
     "video": null,
     "retweet": { "post_id": "12360", "wayback_timestamp": "...", "created_at": "..." }
   },
-  "new": { ... },
-  "material": { ... },
-  "modern": { ... }
+  "twitter-new": { "...": "..." },
+  "twitter-material": { "...": "..." },
+  "twitter-modern": { "...": "..." }
 }
 ```
 
@@ -113,10 +145,10 @@ theme-extractor/
     backfill/                 # Recovered posts from gap-fill crawls
   output/                     # Generated artifacts (checked in)
     themes/
-      classic.css
-      new.css
-      material.css
-      modern.css
+      twitter-classic.css
+      twitter-new.css
+      twitter-material.css
+      twitter-modern.css
     avatars/                  # Downloaded profile images (checked in)
     profile-snapshots.ndjson  # Curated profile data for the builder
 ```
@@ -172,7 +204,7 @@ Each snapshot produces a raw archive file, organized by era and content type:
 
 ```
 theme-extractor/data/wayback/
-  {era}/
+  {theme}/                # twitter-classic, twitter-new, etc.
     {content_type}/       # plain, reply, quote, photo, video, retweet
       dom.html            # innerHTML of the tweet container
       styles.json         # computed styles per element selector
@@ -193,7 +225,7 @@ Each CSS file styles the standardized post DOM structure (see below) to match th
 The frontend renders each post with a richer DOM than today:
 
 ```html
-<article class="post" data-era="material" data-theme="material">
+<article class="post" data-platform="x" data-theme="twitter-material">
   <div class="post-avatar">
     <img src="..." alt="@dril" />
   </div>
@@ -222,10 +254,11 @@ The frontend renders each post with a richer DOM than today:
 </article>
 ```
 
-- `data-era` is computed from `created_at` and is the default theme
-- `data-theme` reflects the user's current selection (or matches `data-era` if auto)
-- Theme CSS targets `.post[data-theme="classic"]`, `.post[data-theme="material"]`, etc.
+- `data-platform` is the post's source platform (`x`, `bsky`, `threads`)
+- `data-theme` reflects the user's current selection, or the auto-resolved theme from `getAutoTheme(platform, created_at)`
+- Theme CSS targets `.post[data-theme="twitter-classic"]`, `.post[data-theme="twitter-material"]`, etc.
 - Light backgrounds are self-contained within the `.post` card; the page stays dark
+- Any theme can be applied to any platform's posts — the DOM structure is platform-neutral
 
 ## Profile Snapshots
 
@@ -294,32 +327,23 @@ A theme selector in the page header:
 <div class="theme-selector">
   <label>Theme:</label>
   <select id="theme-select">
-    <option value="auto" selected>Era-accurate (auto)</option>
-    <option value="classic">Classic (2008–2010)</option>
-    <option value="new">New Twitter (2010–2014)</option>
-    <option value="material">Material (2014–2019)</option>
-    <option value="modern">Modern (2019–2023)</option>
+    <option value="auto" selected>Auto (era-accurate)</option>
+    <optgroup label="Twitter">
+      <option value="twitter-classic">Twitter Classic (2008–2010)</option>
+      <option value="twitter-new">Twitter New (2010–2014)</option>
+      <option value="twitter-material">Twitter Material (2014–2019)</option>
+      <option value="twitter-modern">Twitter Modern (2019–2023)</option>
+    </optgroup>
+    <!-- future: Bluesky, Threads optgroups -->
   </select>
 </div>
 ```
 
 ### Behavior
 
-- **Auto mode (default):** Each post's `data-theme` matches its `data-era`, computed from `created_at`
-- **Manual override:** All posts use the selected theme regardless of date
+- **Auto mode (default):** Each post's `data-theme` is set by `getAutoTheme(platform, created_at)` — era-correct per platform
+- **Manual override:** All posts use the selected theme regardless of platform or date
 - Selection persists in `localStorage`
-
-### Era Resolution
-
-```js
-function getEra(createdAt) {
-  const d = new Date(createdAt);
-  if (d < new Date("2010-09-01")) return "classic";
-  if (d < new Date("2014-06-01")) return "new";
-  if (d < new Date("2019-07-15")) return "material";
-  return "modern";
-}
-```
 
 ## Post Backfill from Wayback Machine
 

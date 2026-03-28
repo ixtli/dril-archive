@@ -59,7 +59,9 @@ Implement the reusable Wayback Machine interaction layer. This is the foundation
 
 **`types.ts`** — shared types:
 ```ts
-type Era = "classic" | "new" | "material" | "modern";
+type Platform = "x" | "bsky" | "threads";
+type TwitterEra = "twitter-classic" | "twitter-new" | "twitter-material" | "twitter-modern";
+type ThemeId = TwitterEra | "bsky-default" | "threads-default";  // extensible
 type ContentType = "plain" | "reply" | "quote" | "photo" | "video" | "retweet";
 
 interface CdxResult {
@@ -160,14 +162,14 @@ State file lives alongside the task's output, e.g., `data/backfill/progress.json
 
 **`tweet-selectors.ts`** — era-aware selector chains:
 ```ts
-function getEraFromDate(date: string): Era;
+function getAutoTheme(platform: Platform, date: string): ThemeId;
 
 // Each returns an array of selectors to try in order (first match wins)
-function getTweetContainerSelectors(era: Era): string[];
-function getTweetTextSelectors(era: Era): string[];
-function getTimestampSelectors(era: Era): string[];
-function getEngagementSelectors(era: Era): string[];
-function getProfileSelectors(era: Era): { name: string[]; bio: string[]; avatar: string[] };
+function getTweetContainerSelectors(theme: TwitterEra): string[];
+function getTweetTextSelectors(theme: TwitterEra): string[];
+function getTimestampSelectors(theme: TwitterEra): string[];
+function getEngagementSelectors(theme: TwitterEra): string[];
+function getProfileSelectors(theme: TwitterEra): { name: string[]; bio: string[]; avatar: string[] };
 ```
 
 ### 1.2 Sample Selection Script
@@ -201,7 +203,7 @@ Uses `CdxClient` from the core library. Takes the candidates from `data/candidat
 
 ```json
 {
-  "classic": {
+  "twitter-classic": {
     "plain": { "post_id": "12345", "wayback_timestamp": "20090815123456", "created_at": "..." },
     "reply": { "post_id": "12346", "wayback_timestamp": "20091201...", "created_at": "..." },
     "quote": null,
@@ -209,9 +211,9 @@ Uses `CdxClient` from the core library. Takes the candidates from `data/candidat
     "video": null,
     "retweet": { "post_id": "12360", "wayback_timestamp": "...", "created_at": "..." }
   },
-  "new": { "...": "..." },
-  "material": { "...": "..." },
-  "modern": { "...": "..." },
+  "twitter-new": { "...": "..." },
+  "twitter-material": { "...": "..." },
+  "twitter-modern": { "...": "..." },
   "profiles": [
     { "wayback_timestamp": "20090301...", "url": "twitter.com/dril" },
     { "wayback_timestamp": "20110815...", "url": "twitter.com/dril" }
@@ -237,7 +239,7 @@ Uses `WaybackPageLoader` and `ProgressTracker` from the core library. Reads `dat
    d. Call `pageLoader.screenshotElement(page, selector, path)` → `screenshot.png`
    e. Write metadata → `metadata.json`
    f. Call `progress.markProcessed(key, metadata)`
-3. Write all output to `theme-extractor/data/wayback/{era}/{content_type}/`
+3. Write all output to `theme-extractor/data/wayback/{theme}/{content_type}/`
 
 Selector chains come from `tweet-selectors.ts` — the script doesn't hardcode them.
 
@@ -259,13 +261,13 @@ Uses `WaybackPageLoader` and `ProgressTracker` from the core library. For each p
 
 **File:** `theme-extractor/src/tasks/build-themes.ts`
 
-Reads `theme-extractor/data/wayback/{era}/*/styles.json` and generates `theme-extractor/output/themes/{era}.css`.
+Reads `theme-extractor/data/wayback/{theme}/*/styles.json` and generates `theme-extractor/output/themes/{theme}.css`.
 
 For each era, map extracted computed styles to CSS rules targeting the standardized post DOM:
 
 ```css
-/* theme-extractor/output/themes/classic.css */
-.post[data-theme="classic"] {
+/* theme-extractor/output/themes/twitter-classic.css */
+.post[data-theme="twitter-classic"] {
   background: #fff;
   border: 1px solid #ccc;
   border-radius: 5px;
@@ -273,7 +275,7 @@ For each era, map extracted computed styles to CSS rules targeting the standardi
   font-size: 12px;
   /* ... all properties from styles.json */
 }
-.post[data-theme="classic"] .post-avatar img {
+.post[data-theme="twitter-classic"] .post-avatar img {
   width: 73px;
   height: 73px;
   border-radius: 4px;
@@ -309,12 +311,12 @@ dril-builder data/ site/dril.db --profiles theme-extractor/data/profile/snapshot
 
 Update the `search()` function to render the new post structure:
 
-- Add `<article>` with `data-era` and `data-theme` attributes
+- Add `<article>` with `data-platform` and `data-theme` attributes
 - Add avatar `<img>` (resolved from profile snapshots)
 - Add display name and handle in header
 - Add engagement stats (likes/shares)
 - Move reply context above post text (Twitter convention)
-- `getEra(createdAt)` function for era classification
+- `getAutoTheme(platform, createdAt)` function for platform-aware era classification
 
 New query to fetch profile data:
 
@@ -340,7 +342,8 @@ Cache profile resolution results (there are only ~10-20 snapshots, so preload al
 - Add `<select>` to the header area
 - On change: update all visible posts' `data-theme` attribute, save to `localStorage`
 - On load: read from `localStorage`, default to `"auto"`
-- In auto mode, each post gets `data-theme` = `getEra(post.created_at)`
+- In auto mode, each post gets `data-theme` = `getAutoTheme(post.platform, post.created_at)`
+- All themes available regardless of post platform (user can apply Twitter Classic to a Bluesky post)
 
 ### 3.4 Avatar Serving
 
