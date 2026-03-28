@@ -3,6 +3,8 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6am UTC
   workflow_dispatch:
 
 permissions:
@@ -27,14 +29,17 @@ jobs:
       - name: Install JS dependencies
         run: bun install
 
-      - name: Build normalizer and builder
-        run: cargo build --release -p dril-normalizer -p dril-builder
+      - name: Build all tools
+        run: cargo build --release -p dril-normalizer -p dril-builder -p dril-bsky-sync
 
       - name: Clone dril archive
         run: git clone --depth 1 https://github.com/codemasher/dril-archive.git /tmp/dril-archive
 
       - name: Normalize archive
         run: ./target/release/dril-normalizer --source codemasher --input /tmp/dril-archive/.build/dril.json --output-dir data/
+
+      - name: Sync Bluesky posts
+        run: ./target/release/dril-bsky-sync --output data/scraped/bsky-dril-live.jsonl
 
       - name: Append scraped data
         run: |
