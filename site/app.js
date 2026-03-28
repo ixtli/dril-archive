@@ -100,45 +100,83 @@
 		return terms.join(" ");
 	}
 
-	function search(input) {
-		if (!db) return;
-		const query = buildQuery(input);
-		if (!query) {
-			els.results.innerHTML = "";
-			return;
-		}
+	function buildLikePattern(input) {
+		return `%${input.trim().replace(/%/g, "\\%").replace(/_/g, "\\_")}%`;
+	}
 
-		try {
-			const stmt = db.prepare(
-				`SELECT t.id, t.text, t.created_at, t.is_reply, t.reply_to_user
+	function searchFts(input) {
+		const query = buildQuery(input);
+		const stmt = db.prepare(
+			`SELECT t.id, t.text, t.created_at, t.is_reply, t.reply_to_user
                  FROM posts_fts f
                  JOIN posts t ON t.rowid = f.rowid
                  WHERE posts_fts MATCH ?
                  ORDER BY rank
                  LIMIT 50`,
-			);
-			stmt.bind([query]);
+		);
+		stmt.bind([query]);
+		const rows = [];
+		while (stmt.step()) {
+			rows.push(stmt.get());
+		}
+		stmt.free();
+		return rows;
+	}
 
-			let html = "";
-			while (stmt.step()) {
-				const [id, text, created_at, is_reply, reply_to_user] = stmt.get();
-				const url = `https://x.com/dril/status/${id}`;
+	function searchLike(input) {
+		const pattern = buildLikePattern(input);
+		const stmt = db.prepare(
+			`SELECT id, text, created_at, is_reply, reply_to_user
+                 FROM posts
+                 WHERE text LIKE ? ESCAPE '\\'
+                 ORDER BY id
+                 LIMIT 50`,
+		);
+		stmt.bind([pattern]);
+		const rows = [];
+		while (stmt.step()) {
+			rows.push(stmt.get());
+		}
+		stmt.free();
+		return rows;
+	}
 
-				html += `<div class="post">`;
-				if (is_reply && reply_to_user) {
-					html += `<div class="post-reply-to">replying to @${escapeHtml(
-						reply_to_user,
-					)}</div>`;
-				}
-				html += `<div class="post-text">${escapeHtml(text)}</div>`;
-				html += `<div class="post-meta">`;
-				html += `${formatDate(
-					created_at,
-				)} · <a href="${url}" target="_blank" rel="noopener">view on X</a>`;
-				html += `</div></div>`;
+	function renderRows(rows) {
+		let html = "";
+		for (const [id, text, created_at, is_reply, reply_to_user] of rows) {
+			const url = `https://x.com/dril/status/${id}`;
+			html += `<div class="post">`;
+			if (is_reply && reply_to_user) {
+				html += `<div class="post-reply-to">replying to @${escapeHtml(
+					reply_to_user,
+				)}</div>`;
 			}
-			stmt.free();
+			html += `<div class="post-text">${escapeHtml(text)}</div>`;
+			html += `<div class="post-meta">`;
+			html += `${formatDate(
+				created_at,
+			)} · <a href="${url}" target="_blank" rel="noopener">view on X</a>`;
+			html += `</div></div>`;
+		}
+		return html;
+	}
 
+	function search(input) {
+		if (!db) return;
+		const trimmed = input.trim();
+		if (!trimmed) {
+			els.results.innerHTML = "";
+			return;
+		}
+
+		try {
+			let rows;
+			try {
+				rows = searchFts(trimmed);
+			} catch (_ftsErr) {
+				rows = searchLike(trimmed);
+			}
+			const html = renderRows(rows);
 			els.results.innerHTML =
 				html || `<p style="color:#666;margin-top:20px;">no results</p>`;
 		} catch (err) {
