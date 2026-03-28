@@ -53,9 +53,29 @@ bun run test:e2e
 pre-commit run --all-files
 ```
 
+## Historical theme extraction
+
+The `theme-extractor/` directory contains tooling to scrape the [Wayback Machine](https://web.archive.org/) and archive how dril's tweets looked at different points in time across Twitter's four design eras (Classic, New, Material, Modern).
+
+It captures the actual DOM structure and computed CSS from archived tweet pages, plus dril's profile metadata (display name, bio, avatar) over time. The same infrastructure also supports backfilling missing posts from the 2023-2024 gap period when Twitter's API became unreliable.
+
+```sh
+cd theme-extractor
+bun install && npx playwright install chromium
+
+bun run select          # Find candidate posts from the archive DB
+bun run discover        # Check Wayback Machine for snapshots
+bun run extract:themes  # Extract DOM/CSS/screenshots
+bun run build:themes    # Generate theme CSS
+
+bun run backfill        # Recover missing 2023-2024 posts (incremental)
+```
+
+All extraction is manual, rate-limited (10s between page loads), and resumable. See [CLAUDE.md](CLAUDE.md) for full details.
+
 ## Status
 
-The normalizer, builder, and search frontend are functional. The [codemasher/dril-archive](https://github.com/codemasher/dril-archive) covers ~11,000 posts from 2008-2023. A gap-fill for 2023-present is planned.
+The normalizer, builder, and search frontend are functional. The [codemasher/dril-archive](https://github.com/codemasher/dril-archive) covers ~11,000 posts from 2008-2023. Theme extraction tooling is built; frontend integration of era-accurate post styling is in progress.
 
 ## License
 

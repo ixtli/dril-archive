@@ -27,6 +27,11 @@ site/              Static frontend (the deployable artifact)
   index.html       App shell with loading/search UI
   app.js           DB loading with progress, search, rendering
   style.css        Dark theme, minimal styling
+theme-extractor/   Wayback Machine extraction tooling (standalone)
+  src/lib/         Reusable core: CDX client, page loader, rate limiter, progress tracker
+  src/tasks/       Task scripts: sample selection, theme/profile extraction, backfill
+  data/            Raw extraction output (gitignored)
+  output/          Generated themes + avatars (checked in)
 testdata/          Test fixtures
   sample.ndjson    10 sample posts (single-file mode)
   dir-test/        Directory mode test fixtures (4 NDJSON files)
@@ -91,6 +96,7 @@ bunx @biomejs/biome check --write site/app.js
 | Search index | SQLite FTS5 (prefix matching, sub-50ms queries) |
 | Frontend | Vanilla HTML/JS/CSS, `@sqlite.org/sqlite-wasm` (official SQLite WASM) |
 | E2E Testing | Playwright (headless Chromium) |
+| Theme Extractor | TypeScript, Playwright, better-sqlite3, Wayback Machine CDX API |
 | Formatting/Linting | Biome via bun, cargo fmt, clippy |
 | Git hooks | pre-commit framework |
 
@@ -100,7 +106,8 @@ bunx @biomejs/biome check --write site/app.js
 - Commit messages: `type(scope): description` (e.g., `feat(builder):`, `fix:`, `chore:`)
 - Frontend uses tabs (biome default), Rust uses spaces (rustfmt default)
 - No frameworks, no build step for frontend — just static files
-- `data/`, `site/dril.db`, and `site/sqlite3/` are gitignored (build artifacts)
+- `data/`, `site/dril.db`, `site/sqlite3/`, `site/themes/`, and `site/avatars/` are gitignored (build artifacts)
+- `theme-extractor/data/` is gitignored; `theme-extractor/output/` is checked in
 - `Cargo.lock` is committed (binary crate, reproducible builds)
 
 ## Data Pipeline
@@ -149,9 +156,65 @@ Post URLs are derived from ID: `https://x.com/dril/status/{id}`
 - **Biome ignores HTML/CSS by default** — format commands need `--html-formatter-enabled=true --css-formatter-enabled=true`. The pre-commit hooks already have this configured.
 - **E2E tests must not assert transient loading states** — the test DB is tiny and loads before Playwright can observe the progress bar. Only assert the final state (search input visible).
 
+## Theme Extractor
+
+The `theme-extractor/` directory is a self-contained TypeScript project that scrapes the Wayback Machine to archive how tweets looked at different points in time. It has its own `package.json` and dependencies (Playwright, better-sqlite3).
+
+### Architecture
+
+The tooling is split into a **reusable core library** (`src/lib/`) and **task scripts** (`src/tasks/`):
+
+**Core library:**
+- `cdx.ts` — Wayback Machine CDX API client with disk-based response caching
+- `wayback-page.ts` — Playwright page loader with Wayback toolbar removal and retries
+- `rate-limiter.ts` — Configurable delay with jitter and exponential backoff (default 10s between page loads)
+- `progress.ts` — Resumable JSON state tracker for long-running crawls
+- `tweet-selectors.ts` — Era-aware CSS selector chains for all 4 Twitter design eras
+- `types.ts` — Platform-prefixed theme IDs (`twitter-classic`, `twitter-new`, `twitter-material`, `twitter-modern`)
+
+**Task scripts:**
+| Script | Purpose | Command |
+|--------|---------|---------|
+| `select-samples.ts` | Query archive DB for candidate post IDs per content type and era | `bun run select` |
+| `discover-samples.ts` | Check CDX availability for candidates, build sample manifest | `bun run discover` |
+| `extract-themes.ts` | Extract DOM structure, computed CSS, and screenshots from Wayback snapshots | `bun run extract:themes` |
+| `extract-profiles.ts` | Extract dril's display name, bio, and avatar from profile page snapshots | `bun run extract:profiles` |
+| `build-themes.ts` | Generate theme CSS files from extracted data and researched defaults | `bun run build:themes` |
+| `backfill-posts.ts` | Recover missing posts from the 2023–2024 gap via Wayback Machine | `bun run backfill` |
+
+### Usage
+
+```sh
+cd theme-extractor
+bun install
+npx playwright install chromium
+
+# Theme extraction pipeline (run in order)
+bun run select                      # Find candidate posts from the archive DB
+bun run discover                    # Check Wayback Machine for available snapshots
+bun run extract:themes              # Extract DOM/CSS/screenshots
+bun run extract:profiles            # Extract profile metadata + avatars
+bun run build:themes                # Generate theme CSS files
+
+# Post backfill (incremental, safe to interrupt)
+bun run backfill                    # Recover missing 2023-2024 posts
+bun run backfill -- --batch-size 50 # Limit to 50 posts per session
+```
+
+All extraction is manual and offline — never runs in CI. Results in `data/` are gitignored; generated output in `output/` is checked in.
+
+### Gotchas
+
+- **All Wayback Machine access is rate-limited** — 10s between page loads, 5s between CDX API calls. Be respectful.
+- **The progress tracker enables resumable crawls** — safe to Ctrl+C and re-run. State is saved in `data/*/progress.json`.
+- **Selector chains are best-effort** — Wayback Machine snapshots vary in fidelity. Some pages may not render correctly. Failed extractions are logged and skipped.
+- **theme-extractor/ has its own node_modules** — it's independent from the root project's dependencies. Run `bun install` inside the directory.
+
 ## Not Yet Implemented
 
 - **Media rendering** in the frontend (data is captured in the DB)
 - **Repost display** in the frontend (data is captured in the DB)
-- **Twitter API gap-fill** normalizer source (2023-present, ~$100 one-time)
+- **Twitter era themes** in the frontend (extraction tooling is built, frontend integration is pending)
+- **Profile snapshots** in the builder and frontend (extraction tooling is built, builder support is pending)
+- **Post backfill** for the 2023-2024 gap (tooling is built, crawl not yet run)
 - **Production deployment**: Static hosting setup
