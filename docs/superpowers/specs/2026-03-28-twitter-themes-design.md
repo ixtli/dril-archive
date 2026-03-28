@@ -84,39 +84,87 @@ This gives us ~16-24 targeted page loads (4 eras × 4-6 content types) instead o
 
 ### Extraction Tool (`theme-extractor/`)
 
-A self-contained subdirectory with its own `package.json` and Playwright dependency. All extraction scripts, output data, and generated theme CSS live here.
+A self-contained subdirectory with its own `package.json` and Playwright dependency. The tooling is split into a **reusable Wayback Machine core library** and **task-specific scripts** that consume it.
+
+The core library is designed to be reused beyond theme extraction — in particular, for backfilling post content from the Wayback Machine during periods where the archive has gaps (e.g., 2023-01-01 to 2024-06-01, when Twitter/X's API became unreliable and the Internet Archive's coverage is spotty).
 
 ```
 theme-extractor/
-  package.json              # Playwright + ts dependencies
+  package.json                # Playwright, better-sqlite3, tsx
+  tsconfig.json
   src/
-    cdx-discover.ts         # CDX API snapshot discovery
-    extract-themes.ts       # DOM/CSS extraction from tweet pages
-    extract-profiles.ts     # Profile metadata + avatar extraction
-    build-themes.ts         # Generate CSS from extracted data
-  data/                     # Extraction output (gitignored)
-    wayback/                # Raw DOM/CSS/screenshots per era
-    profile/                # Profile snapshots + avatars
-  output/                   # Generated artifacts (checked in)
+    lib/                      # Reusable Wayback Machine core
+      cdx.ts                  # CDX API client (query, paginate, rate-limit)
+      wayback-page.ts         # Playwright page loader (navigate, wait, retry)
+      rate-limiter.ts         # Configurable delay + backoff
+      progress.ts             # Resumable progress tracker (JSON state file)
+      tweet-selectors.ts      # Era-aware DOM selectors for tweet containers
+      types.ts                # Shared types (WaybackSnapshot, CdxResult, etc.)
+    tasks/
+      select-samples.ts       # Query archive DB for theme sample candidates
+      discover-samples.ts     # Check CDX availability for sample candidates
+      extract-themes.ts       # DOM/CSS extraction from tweet pages
+      extract-profiles.ts     # Profile metadata + avatar extraction
+      build-themes.ts         # Generate CSS from extracted data
+      backfill-posts.ts       # Crawl Wayback for missing posts (gap-fill)
+  data/                       # All extraction output (gitignored)
+    wayback/                  # Raw DOM/CSS/screenshots per era
+    profile/                  # Profile snapshots + avatars
+    backfill/                 # Recovered posts from gap-fill crawls
+  output/                     # Generated artifacts (checked in)
     themes/
       classic.css
       new.css
       material.css
       modern.css
-    avatars/                # Downloaded profile images (checked in)
+    avatars/                  # Downloaded profile images (checked in)
     profile-snapshots.ndjson  # Curated profile data for the builder
 ```
 
-Uses Playwright to:
+### Core Library (`src/lib/`)
 
-1. Load each Wayback Machine URL in headless Chromium
-2. Wait for the tweet container to render
-3. Extract the tweet card's DOM structure (tag names, class names, nesting)
-4. Call `getComputedStyle()` on each significant element
-5. Download any relevant assets (avatar images, icon sprites)
-6. Write raw results to `theme-extractor/data/wayback/`
+**`cdx.ts`** — Wayback Machine CDX API client:
+- `querySnapshots(url, options)` — query CDX API with filters, collapse, pagination
+- `findBestSnapshot(url, targetDate)` — find the snapshot closest to a target date
+- `checkAvailability(url)` — quick existence check
+- Built-in response caching to `data/.cdx-cache/` so repeated runs don't re-query
+- Uses the shared rate limiter
 
-**Rate limiting:** 10-second delay between requests. Polite User-Agent. Manual invocation only, never in CI.
+**`wayback-page.ts`** — Playwright page loader for Wayback Machine pages:
+- `loadPage(waybackUrl, options)` — navigate with configurable timeout and retry
+- Handles Wayback Machine toolbar injection (removes `#wm-ipp-base` overlay)
+- Handles common failure modes: 404 within Wayback frame, redirect loops, empty captures
+- Returns a Playwright `Page` object for callers to extract whatever they need
+- Uses the shared rate limiter between page loads
+
+**`rate-limiter.ts`** — configurable rate limiting:
+- Constructor takes `minDelayMs` (default 10000) and `maxDelayMs` for jitter
+- `wait()` — sleep for the configured delay with random jitter
+- `backoff()` — exponential backoff on failure (2x, capped at `maxDelayMs`)
+- Shared instance across CDX queries and page loads
+
+**`progress.ts`** — resumable progress tracker:
+- Reads/writes a JSON state file (e.g., `data/backfill/progress.json`)
+- Tracks which items have been processed, which failed, which are pending
+- Allows long-running crawls to be interrupted and resumed
+- `isProcessed(key)`, `markProcessed(key, result)`, `markFailed(key, error)`
+
+**`tweet-selectors.ts`** — era-aware DOM selectors:
+- `getTweetContainerSelector(era)` — returns the right CSS selector for the tweet container
+- `getTweetTextSelector(era)` — returns selector for tweet text content
+- `getMetadataSelectors(era)` — returns selectors for timestamp, likes, shares, etc.
+- `getProfileSelectors(era)` — returns selectors for name, bio, avatar on profile pages
+- Fallback chains: try primary selector, then alternatives
+
+**`types.ts`** — shared TypeScript types:
+- `CdxResult`, `WaybackSnapshot`, `Era`, `ContentType`
+- `ProgressState`, `ExtractedPost`, `ExtractedStyles`
+
+### Task Scripts
+
+Each task script in `src/tasks/` is a standalone CLI entry point that composes the core library. They are invoked manually and are never run in CI.
+
+**Rate limiting across all tasks:** 10-second minimum delay between Wayback page loads. 5-second delay between CDX API calls. Polite User-Agent. Manual invocation only.
 
 ### Extracted Data Format
 
@@ -273,18 +321,63 @@ function getEra(createdAt) {
 }
 ```
 
+## Post Backfill from Wayback Machine
+
+### Problem
+
+The archive has a significant gap from approximately 2023-01-01 to 2024-06-01. During this period, Twitter's API became unreliable/expensive, and automated archiving tools lost access. The Wayback Machine captured some (not all) of these tweets. We can recover post content from those snapshots.
+
+### Approach
+
+The backfill task (`src/tasks/backfill-posts.ts`) reuses the same core library as theme extraction:
+
+1. **Discover available snapshots** — use `cdx.ts` to query for all Wayback captures of `twitter.com/dril/status/*` in the target date range
+2. **Filter to unique post IDs** — the CDX API returns the original URL, from which we extract the post ID. Collapse duplicates, keeping the best (most recent) capture per post
+3. **Cross-reference with existing archive** — skip any post ID already in the database
+4. **Extract post content** — for each missing post, use `wayback-page.ts` to load it, then extract:
+   - Tweet text
+   - Timestamp (`datetime` attribute or parsed from display)
+   - Whether it's a reply (and to whom)
+   - Whether it's a quote tweet (and the quoted text)
+   - Media URLs and types
+   - Engagement counts (likes, retweets) — as of the snapshot date
+5. **Output NDJSON** — write recovered posts to `data/backfill/recovered-posts.ndjson` in the same format the normalizer outputs, so the builder can ingest them directly
+
+### Scale and Rate Limiting
+
+The 2023-01-01 to 2024-06-01 window is ~18 months. dril posted roughly 2-5 times per day, so ~1000-2700 posts. The Wayback Machine won't have all of them, but may have captured hundreds.
+
+- CDX discovery: single API call with date range filter, fast
+- Page loads: potentially hundreds, at 10-second intervals = ~30-60 minutes per batch of ~200
+- The progress tracker (`progress.ts`) makes this safe to run in multiple sessions over days/weeks
+- Run in batches: process 50-100 posts per session, resume later
+
+### Output Integration
+
+The recovered NDJSON files slot into the existing data pipeline:
+
+```
+theme-extractor/data/backfill/recovered-posts.ndjson
+  → copy to data/backfill/ (or reference directly)
+  → dril-builder ingests alongside other NDJSON sources
+```
+
+The builder already supports directory input with multiple NDJSON files, so backfilled posts merge naturally. The builder's deduplication (by post ID) prevents double-counting if some posts are already in the archive.
+
 ## Implementation Phases
 
 ### Phase 1: Wayback Extraction Tooling
 - `theme-extractor/` subdirectory with its own `package.json`
-- `src/cdx-discover.ts` — snapshot discovery via CDX API
-- `src/extract-themes.ts` — Playwright DOM/CSS extraction
-- `src/extract-profiles.ts` — Playwright profile metadata extraction
+- `src/lib/` — reusable Wayback Machine core (CDX client, page loader, rate limiter, progress tracker, selectors)
+- `src/tasks/select-samples.ts` — query archive DB for theme sample candidates
+- `src/tasks/discover-samples.ts` — check CDX availability for candidates
+- `src/tasks/extract-themes.ts` — Playwright DOM/CSS extraction
+- `src/tasks/extract-profiles.ts` — Playwright profile metadata extraction
 - Raw data lands in `theme-extractor/data/` (gitignored)
-- Manual invocation, results cached
+- Manual invocation, all results cached, resumable
 
 ### Phase 2: Theme CSS + Profile Pipeline
-- `src/build-themes.ts` — generate `theme-extractor/output/themes/*.css` from extracted data
+- `src/tasks/build-themes.ts` — generate `theme-extractor/output/themes/*.css` from extracted data
 - Extend builder to read `data/profile/snapshots.ndjson` and populate `profile_snapshots` table
 - Copy avatar images to `site/avatars/` during build
 
@@ -294,7 +387,13 @@ function getEra(createdAt) {
 - Theme selector UI with auto/manual modes
 - Profile snapshot resolution for display name and avatar per post
 
-### Phase 4: Refinement
+### Phase 4: Post Backfill (2023–2024 Gap)
+- `src/tasks/backfill-posts.ts` — crawl Wayback for missing posts in the gap period
+- Uses same core library: CDX discovery, page loading, rate limiting, progress tracking
+- Outputs NDJSON compatible with the existing builder pipeline
+- Designed for incremental runs over days/weeks
+
+### Phase 5: Refinement
 - Hand-tune theme CSS against screenshots for fidelity
 - Fill gaps where Wayback snapshots are incomplete
 - Responsive behavior for themed cards
