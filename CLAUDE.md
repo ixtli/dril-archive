@@ -51,16 +51,17 @@ docs/superpowers/  Design specs and implementation plans
 ## Build & Run
 
 ```sh
-# Build the builder
-cargo build --release -p dril-builder
+bun run dev          # Quick start: test DB (11 posts) + Vite dev server
+bun run dev:full     # Full archive: normalize + scrape + bsky sync + Vite (~12,800 posts)
+bun run build        # Production build to site/dist/
+```
 
-# Generate the database from NDJSON
-./target/release/dril-builder <input.ndjson> [output.db]
-# or from stdin:
-cat posts.ndjson | ./target/release/dril-builder - site/dril.db
-
-# Serve the site locally
-python3 -m http.server 8080 --directory site
+For manual pipeline control:
+```sh
+cargo build --release -p dril-normalizer -p dril-builder -p dril-bsky-sync
+./target/release/dril-normalizer --source codemasher --input <dril.json> --output-dir data/
+./target/release/dril-bsky-sync --output data/scraped/bsky-dril.jsonl
+./target/release/dril-builder data/ site/vendor/dril.db
 ```
 
 ## Testing
@@ -160,12 +161,15 @@ Post URLs are derived from ID: `https://x.com/dril/status/{id}`
 
 ## Gotchas
 
-- **Do not use sql.js** — it has never shipped FTS5 support. We use `@sqlite.org/sqlite-wasm` (the official SQLite team build) which includes all extensions. This was discovered when E2E tests revealed "no such module: fts5" in-browser.
-- **SQLite WASM API is not sql.js** — loading a DB requires `sqlite3.capi.sqlite3_js_posix_create_file(path, bytes)` then `new sqlite3.oo1.DB(path, 'r')`. Row access uses `stmt.get([])` (must pass empty array). Cleanup is `stmt.finalize()` not `stmt.free()`.
-- **`site/vendor/` is a build artifact** — SQLite WASM files and the test DB are placed here by `scripts/dev.ts`. Don't edit or commit them. Run `bun run dev` to regenerate.
-- **Vite + SQLite WASM gotcha** — SQLite WASM can't be imported from `public/` because Vite rewrites asset paths. Instead, WASM files live in `site/vendor/` and are served via a custom Vite middleware plugin in `vite.config.ts`. This is why the project uses `vendor/` instead of the more conventional `public/` approach.
-- **Biome ignores HTML/CSS by default** — format commands need `--html-formatter-enabled=true --css-formatter-enabled=true`. The pre-commit hooks already have this configured.
-- **E2E tests must not assert transient loading states** — the test DB is tiny and loads before Playwright can observe the progress bar. Only assert the final state (search input visible).
+See [docs/DEVELOPMENT-GUIDE.md](docs/DEVELOPMENT-GUIDE.md) for comprehensive lessons learned. Key ones:
+
+- **Do not use sql.js** — it has never shipped FTS5. Use `@sqlite.org/sqlite-wasm` (official SQLite build).
+- **SQLite WASM API differs from sql.js** — `posix_create_file` + `DB()`, `stmt.get([])`, `stmt.finalize()`. See the guide for full API mapping.
+- **Vite can't import from `public/`** — WASM files live in `site/vendor/` served via a custom Vite middleware plugin. This is the single trickiest part of the frontend build.
+- **Two formatters, one boundary** — Prettier for `site/src/*.svelte`, Biome for everything else. Biome has no Svelte support.
+- **E2E test DB must always rebuild** — `scripts/dev.ts` rebuilds from `testdata/sample.ndjson` every run. A stale full-archive DB causes count mismatches.
+- **Never use `tsx` with Playwright `page.evaluate`** — use `bun` instead (`tsx` injects `__name` helpers that break browser context).
+- **Respect the Internet Archive** — all Wayback Machine access is rate-limited (10s+ between loads). Never run in CI.
 
 ## Theme Extractor
 
@@ -225,6 +229,7 @@ All extraction is manual and offline — never runs in CI. Results in `data/` ar
 
 - **Media rendering** in the frontend (data is captured in the DB)
 - **Repost display** in the frontend (data is captured in the DB)
+- **Threads scraping** — Threads API requires OAuth; manual scraping or a future public API needed
 - **Profile snapshots** in the builder and frontend (extraction tooling is built, builder support is pending)
-- **Post backfill** for the 2023-2024 gap (tooling is built, crawl not yet run)
-- **Production deployment**: Static hosting setup
+- **Post backfill** for the 2023-2024 gap via Wayback Machine (tooling is built, crawl not yet run)
+- **Nov-Dec 2023 gap** on X — search returned 0 results for this window, needs investigation
