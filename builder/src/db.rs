@@ -67,7 +67,7 @@ pub fn insert_posts(conn: &Connection, posts: &[Post]) -> Result<usize, String> 
 
     let mut post_stmt = conn
         .prepare(
-            "INSERT INTO posts (id, platform, text, created_at, is_reply, reply_to_user, is_quote, quoted_text, likes, shares)
+            "INSERT OR IGNORE INTO posts (id, platform, text, created_at, is_reply, reply_to_user, is_quote, quoted_text, likes, shares)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         )
         .map_err(|e| format!("prepare insert: {e}"))?;
@@ -77,7 +77,7 @@ pub fn insert_posts(conn: &Connection, posts: &[Post]) -> Result<usize, String> 
         .map_err(|e| format!("prepare fts insert: {e}"))?;
 
     for post in posts {
-        post_stmt
+        let changes = post_stmt
             .execute(rusqlite::params![
                 post.id,
                 post.platform,
@@ -92,11 +92,12 @@ pub fn insert_posts(conn: &Connection, posts: &[Post]) -> Result<usize, String> 
             ])
             .map_err(|e| format!("insert post {}: {e}", post.id))?;
 
-        let rowid = conn.last_insert_rowid();
-
-        fts_stmt
-            .execute(rusqlite::params![rowid, post.text, post.quoted_text])
-            .map_err(|e| format!("insert fts for {}: {e}", post.id))?;
+        if changes > 0 {
+            let rowid = conn.last_insert_rowid();
+            fts_stmt
+                .execute(rusqlite::params![rowid, post.text, post.quoted_text])
+                .map_err(|e| format!("insert fts for {}: {e}", post.id))?;
+        }
     }
 
     conn.execute_batch("COMMIT;")
@@ -111,7 +112,7 @@ pub fn insert_reposts(conn: &Connection, reposts: &[dril_types::Repost]) -> Resu
 
     let mut stmt = conn
         .prepare(
-            "INSERT INTO reposts (id, platform, created_at, original_post_id, original_user_id, original_text, original_created_at, likes, shares)
+            "INSERT OR IGNORE INTO reposts (id, platform, created_at, original_post_id, original_user_id, original_text, original_created_at, likes, shares)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         )
         .map_err(|e| format!("prepare repost insert: {e}"))?;
@@ -174,7 +175,7 @@ pub fn insert_users(conn: &Connection, users: &[dril_types::User]) -> Result<usi
 
     let mut stmt = conn
         .prepare(
-            "INSERT INTO users (id, platform, screen_name, name)
+            "INSERT OR IGNORE INTO users (id, platform, screen_name, name)
              VALUES (?1, ?2, ?3, ?4)",
         )
         .map_err(|e| format!("prepare user insert: {e}"))?;
