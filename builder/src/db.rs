@@ -101,6 +101,88 @@ pub fn insert_posts(conn: &Connection, posts: &[Post]) -> Result<usize, String> 
     Ok(posts.len())
 }
 
+#[allow(dead_code)]
+pub fn insert_reposts(conn: &Connection, reposts: &[dril_types::Repost]) -> Result<usize, String> {
+    conn.execute_batch("BEGIN;")
+        .map_err(|e| format!("begin transaction: {e}"))?;
+
+    let mut stmt = conn
+        .prepare(
+            "INSERT INTO reposts (id, created_at, original_post_id, original_user_id, original_text, original_created_at, likes, shares)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        )
+        .map_err(|e| format!("prepare repost insert: {e}"))?;
+
+    for repost in reposts {
+        stmt.execute(rusqlite::params![
+            repost.id,
+            repost.created_at,
+            repost.original_post_id,
+            repost.original_user_id,
+            repost.original_text,
+            repost.original_created_at,
+            repost.likes as i64,
+            repost.shares as i64,
+        ])
+        .map_err(|e| format!("insert repost {}: {e}", repost.id))?;
+    }
+
+    conn.execute_batch("COMMIT;")
+        .map_err(|e| format!("commit transaction: {e}"))?;
+    Ok(reposts.len())
+}
+
+#[allow(dead_code)]
+pub fn insert_media(conn: &Connection, media: &[dril_types::MediaItem]) -> Result<usize, String> {
+    conn.execute_batch("BEGIN;")
+        .map_err(|e| format!("begin transaction: {e}"))?;
+
+    let mut stmt = conn
+        .prepare(
+            "INSERT INTO media (post_id, type, url, width, height, alt_text)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        )
+        .map_err(|e| format!("prepare media insert: {e}"))?;
+
+    for item in media {
+        stmt.execute(rusqlite::params![
+            item.post_id,
+            item.media_type,
+            item.url,
+            item.width.map(|v| v as i64),
+            item.height.map(|v| v as i64),
+            item.alt_text,
+        ])
+        .map_err(|e| format!("insert media for post {}: {e}", item.post_id))?;
+    }
+
+    conn.execute_batch("COMMIT;")
+        .map_err(|e| format!("commit transaction: {e}"))?;
+    Ok(media.len())
+}
+
+#[allow(dead_code)]
+pub fn insert_users(conn: &Connection, users: &[dril_types::User]) -> Result<usize, String> {
+    conn.execute_batch("BEGIN;")
+        .map_err(|e| format!("begin transaction: {e}"))?;
+
+    let mut stmt = conn
+        .prepare(
+            "INSERT INTO users (id, screen_name, name)
+             VALUES (?1, ?2, ?3)",
+        )
+        .map_err(|e| format!("prepare user insert: {e}"))?;
+
+    for user in users {
+        stmt.execute(rusqlite::params![user.id, user.screen_name, user.name,])
+            .map_err(|e| format!("insert user {}: {e}", user.id))?;
+    }
+
+    conn.execute_batch("COMMIT;")
+        .map_err(|e| format!("commit transaction: {e}"))?;
+    Ok(users.len())
+}
+
 pub fn finalize(conn: &Connection) -> Result<(), String> {
     conn.execute_batch("INSERT INTO posts_fts(posts_fts) VALUES('optimize');")
         .map_err(|e| format!("optimize fts: {e}"))?;
@@ -112,6 +194,7 @@ pub fn finalize(conn: &Connection) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dril_types::{MediaItem, Repost, User};
     use tempfile;
 
     fn sample_posts() -> Vec<Post> {
@@ -294,5 +377,144 @@ mod tests {
         let conn = create_db(&db_path).unwrap();
         insert_posts(&conn, &sample_posts()).unwrap();
         assert!(finalize(&conn).is_ok());
+    }
+
+    fn sample_reposts() -> Vec<Repost> {
+        vec![
+            Repost {
+                id: "100".to_string(),
+                created_at: "2023-01-15T10:00:00Z".to_string(),
+                original_post_id: "200".to_string(),
+                original_user_id: "300".to_string(),
+                original_text: "some funny tweet dril retweeted".to_string(),
+                original_created_at: "2023-01-14T08:00:00Z".to_string(),
+                likes: 5000,
+                shares: 1200,
+            },
+            Repost {
+                id: "101".to_string(),
+                created_at: "2023-02-20T14:30:00Z".to_string(),
+                original_post_id: "201".to_string(),
+                original_user_id: "301".to_string(),
+                original_text: "another retweet".to_string(),
+                original_created_at: "2023-02-19T12:00:00Z".to_string(),
+                likes: 300,
+                shares: 50,
+            },
+        ]
+    }
+
+    fn sample_media() -> Vec<MediaItem> {
+        vec![
+            MediaItem {
+                post_id: "1".to_string(),
+                media_type: "photo".to_string(),
+                url: "https://pbs.twimg.com/media/example1.jpg".to_string(),
+                width: Some(1200),
+                height: Some(800),
+                alt_text: Some("a funny image".to_string()),
+            },
+            MediaItem {
+                post_id: "1".to_string(),
+                media_type: "photo".to_string(),
+                url: "https://pbs.twimg.com/media/example2.jpg".to_string(),
+                width: Some(600),
+                height: Some(400),
+                alt_text: None,
+            },
+            MediaItem {
+                post_id: "2".to_string(),
+                media_type: "video".to_string(),
+                url: "https://video.twimg.com/example3.mp4".to_string(),
+                width: Some(1920),
+                height: Some(1080),
+                alt_text: None,
+            },
+        ]
+    }
+
+    fn sample_users() -> Vec<User> {
+        vec![
+            User {
+                id: "16298441".to_string(),
+                screen_name: "dril".to_string(),
+                name: Some("wint".to_string()),
+            },
+            User {
+                id: "300".to_string(),
+                screen_name: "someone".to_string(),
+                name: Some("Some Person".to_string()),
+            },
+            User {
+                id: "301".to_string(),
+                screen_name: "another".to_string(),
+                name: None,
+            },
+        ]
+    }
+
+    #[test]
+    fn test_insert_reposts() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = create_db(&db_path).unwrap();
+        let reposts = sample_reposts();
+        let count = insert_reposts(&conn, &reposts).unwrap();
+        assert_eq!(count, 2);
+
+        let stored: i64 = conn
+            .query_row("SELECT COUNT(*) FROM reposts", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(stored, 2);
+
+        let (orig_text, likes): (String, i64) = conn
+            .query_row(
+                "SELECT original_text, likes FROM reposts WHERE id = '100'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(orig_text, "some funny tweet dril retweeted");
+        assert_eq!(likes, 5000);
+    }
+
+    #[test]
+    fn test_insert_media() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = create_db(&db_path).unwrap();
+        insert_posts(&conn, &sample_posts()).unwrap();
+        let count = insert_media(&conn, &sample_media()).unwrap();
+        assert_eq!(count, 3);
+
+        let stored: i64 = conn
+            .query_row("SELECT COUNT(*) FROM media", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(stored, 3);
+
+        let post1_media: i64 = conn
+            .query_row("SELECT COUNT(*) FROM media WHERE post_id = '1'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(post1_media, 2);
+    }
+
+    #[test]
+    fn test_insert_users() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = create_db(&db_path).unwrap();
+        let count = insert_users(&conn, &sample_users()).unwrap();
+        assert_eq!(count, 3);
+
+        let screen_name: String = conn
+            .query_row(
+                "SELECT screen_name FROM users WHERE id = '16298441'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(screen_name, "dril");
     }
 }
