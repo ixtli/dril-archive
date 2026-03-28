@@ -6,8 +6,8 @@ A static web app for fuzzy-searching @dril's post archive, distributable via CDN
 
 - **Normalizer** (`normalizer/`): Rust CLI that reads source archives (e.g., codemasher/dril-archive JSON) and outputs NDJSON files via a pluggable `DataSource` trait
 - **Builder** (`builder/`): Rust CLI that reads NDJSON (single file or directory of 4 files) and produces a SQLite database with FTS5 full-text search index
-- **Frontend** (`site/`): Vanilla HTML/JS/CSS single-page app that loads the SQLite DB in-browser via `@sqlite.org/sqlite-wasm` and provides instant as-you-type search
-- **No backend server** — the entire app is static files
+- **Frontend** (`site/`): Svelte 5 + Vite single-page app that loads the SQLite DB in-browser via `@sqlite.org/sqlite-wasm` and provides instant as-you-type search with era-themed post cards
+- **No backend server** — the entire app is static files (Vite builds to `site/dist/`)
 
 ## Project Layout
 
@@ -23,10 +23,18 @@ builder/           Rust CLI (Cargo workspace member)
   src/db.rs        SQLite schema creation, FTS5 indexing
 types/             Shared types crate
   src/lib.rs       Repost, MediaItem, User structs
-site/              Static frontend (the deployable artifact)
-  index.html       App shell with loading/search UI
-  app.js           DB loading with progress, search, rendering
-  style.css        Dark theme, minimal styling
+site/              Svelte + Vite frontend (the deployable artifact)
+  index.html       Vite entry point
+  vite.config.ts   Vite config with SQLite WASM middleware
+  src/             Svelte application source
+    main.ts        App bootstrap
+    App.svelte     Root component (loading, search, results)
+    app.css        Global styles
+    components/    UI components (SearchBar, Controls, PostCard, LoadingBar)
+    templates/     Era-themed post templates (TwitterClassic, TwitterModern, Bluesky, etc.)
+    lib/           Core logic (db.ts, search.ts, themes.ts, types.ts)
+    styles/        Per-era CSS (twitter-classic.css, twitter-modern.css, bluesky.css, etc.)
+  vendor/          SQLite WASM + DB files (served via Vite middleware, gitignored)
 theme-extractor/   Wayback Machine extraction tooling (standalone)
   src/lib/         Reusable core: CDX client, page loader, rate limiter, progress tracker
   src/tasks/       Task scripts: sample selection, theme/profile extraction, backfill
@@ -58,33 +66,35 @@ python3 -m http.server 8080 --directory site
 ## Testing
 
 ```sh
-cargo test -p dril-builder     # 18 Rust tests (7 post parser + 11 db)
-cargo test -p dril-normalizer  # 9 normalizer tests
-bun run test:e2e               # 5 E2E browser tests (Playwright)
+cargo test                     # 28 Rust tests (19 builder + 9 normalizer)
+bun run test:e2e               # 14 Playwright E2E tests
 ```
 
 ## Dev Server
 
 ```sh
-bun run dev                   # Build test DB + serve site on localhost:3000
+bun run dev                   # Start Vite dev server on localhost:5173
 ```
 
-The dev script (`scripts/dev.ts`) copies SQLite WASM files from `node_modules` to `site/sqlite3/`, builds the test DB if needed, and serves the site.
+The dev script (`scripts/dev.ts`) copies SQLite WASM files to `site/vendor/sqlite3/`, builds the test DB if needed, then starts Vite.
 
 ## Code Quality
 
 Pre-commit hooks enforce formatting and linting. They run automatically on `git commit`.
 
 - **Rust**: `cargo fmt --check`, `cargo clippy -- -D warnings`
-- **JS/HTML/CSS**: `biome format` and `biome lint` (via `bunx @biomejs/biome`)
+- **Svelte**: `prettier --check` for `.svelte` files in `site/src/` (Biome does not support `.svelte`)
+- **JS/TS/HTML/CSS**: `biome format` and `biome lint` (via `bunx @biomejs/biome`) for everything outside `.svelte`
+
+**Dual formatter boundary:** Prettier handles `site/src/**/*.svelte` because Biome has no Svelte parser. Everything else uses Biome. The pre-commit hooks enforce both.
 
 To manually run all hooks: `pre-commit run --all-files`
 
 To format before committing:
 ```sh
 cargo fmt
+bunx prettier --write 'site/src/**/*.svelte'
 bunx @biomejs/biome format --write --html-formatter-enabled=true --css-formatter-enabled=true site/
-bunx @biomejs/biome check --write site/app.js
 ```
 
 ## Tech Stack
@@ -94,10 +104,10 @@ bunx @biomejs/biome check --write site/app.js
 | Normalizer | Rust, `serde`/`serde_json`, `chrono`, `DataSource` trait |
 | Builder | Rust, `rusqlite` 0.39 (bundled FTS5), `serde`/`serde_json` |
 | Search index | SQLite FTS5 (prefix matching, sub-50ms queries) |
-| Frontend | Vanilla HTML/JS/CSS, `@sqlite.org/sqlite-wasm` (official SQLite WASM) |
-| E2E Testing | Playwright (headless Chromium) |
+| Frontend | Svelte 5, Vite, `@sqlite.org/sqlite-wasm` (official SQLite WASM) |
+| E2E Testing | Playwright (headless Chromium, 14 tests) |
 | Theme Extractor | TypeScript, Playwright, better-sqlite3, Wayback Machine CDX API |
-| Formatting/Linting | Biome via bun, cargo fmt, clippy |
+| Formatting/Linting | Prettier (`.svelte` only), Biome (everything else), cargo fmt, clippy |
 | Git hooks | pre-commit framework |
 
 ## Conventions
@@ -105,8 +115,8 @@ bunx @biomejs/biome check --write site/app.js
 - Rust edition 2024
 - Commit messages: `type(scope): description` (e.g., `feat(builder):`, `fix:`, `chore:`)
 - Frontend uses tabs (biome default), Rust uses spaces (rustfmt default)
-- No frameworks, no build step for frontend — just static files
-- `data/`, `site/dril.db`, `site/sqlite3/`, `site/themes/`, and `site/avatars/` are gitignored (build artifacts)
+- `.svelte` files use Prettier (Biome has no Svelte support); all other JS/TS/HTML/CSS uses Biome
+- `data/`, `site/dril.db`, `site/vendor/`, `site/dist/`, `site/themes/`, and `site/avatars/` are gitignored (build artifacts)
 - `theme-extractor/data/` is gitignored; `theme-extractor/output/` is checked in
 - `Cargo.lock` is committed (binary crate, reproducible builds)
 
@@ -152,7 +162,8 @@ Post URLs are derived from ID: `https://x.com/dril/status/{id}`
 
 - **Do not use sql.js** — it has never shipped FTS5 support. We use `@sqlite.org/sqlite-wasm` (the official SQLite team build) which includes all extensions. This was discovered when E2E tests revealed "no such module: fts5" in-browser.
 - **SQLite WASM API is not sql.js** — loading a DB requires `sqlite3.capi.sqlite3_js_posix_create_file(path, bytes)` then `new sqlite3.oo1.DB(path, 'r')`. Row access uses `stmt.get([])` (must pass empty array). Cleanup is `stmt.finalize()` not `stmt.free()`.
-- **`site/sqlite3/` is a build artifact** — the WASM files are copied from `node_modules` by `scripts/dev.ts`. Don't edit them or commit them. Run `bun run dev` to regenerate.
+- **`site/vendor/` is a build artifact** — SQLite WASM files and the test DB are placed here by `scripts/dev.ts`. Don't edit or commit them. Run `bun run dev` to regenerate.
+- **Vite + SQLite WASM gotcha** — SQLite WASM can't be imported from `public/` because Vite rewrites asset paths. Instead, WASM files live in `site/vendor/` and are served via a custom Vite middleware plugin in `vite.config.ts`. This is why the project uses `vendor/` instead of the more conventional `public/` approach.
 - **Biome ignores HTML/CSS by default** — format commands need `--html-formatter-enabled=true --css-formatter-enabled=true`. The pre-commit hooks already have this configured.
 - **E2E tests must not assert transient loading states** — the test DB is tiny and loads before Playwright can observe the progress bar. Only assert the final state (search input visible).
 
@@ -214,7 +225,6 @@ All extraction is manual and offline — never runs in CI. Results in `data/` ar
 
 - **Media rendering** in the frontend (data is captured in the DB)
 - **Repost display** in the frontend (data is captured in the DB)
-- **Twitter era themes** in the frontend (extraction tooling is built, frontend integration is pending)
 - **Profile snapshots** in the builder and frontend (extraction tooling is built, builder support is pending)
 - **Post backfill** for the 2023-2024 gap (tooling is built, crawl not yet run)
 - **Production deployment**: Static hosting setup
