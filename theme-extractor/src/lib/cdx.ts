@@ -60,20 +60,36 @@ export class CdxClient {
 		const cached = this.readCache(queryUrl);
 		if (cached !== null) return cached;
 
-		// Rate limit, then fetch
-		await this.rateLimiter.wait();
+		// Rate limit, then fetch with retries on transient errors
+		const maxRetries = 3;
+		let response: Response | null = null;
 
-		const response = await fetch(queryUrl, {
-			headers: { "User-Agent": USER_AGENT },
-		});
+		for (let attempt = 0; attempt <= maxRetries; attempt++) {
+			await this.rateLimiter.wait();
 
-		if (!response.ok) {
-			throw new Error(
-				`CDX API returned ${response.status}: ${await response.text()}`,
+			response = await fetch(queryUrl, {
+				headers: { "User-Agent": USER_AGENT },
+			});
+
+			if (response.ok) break;
+
+			const retryable = [429, 500, 502, 503, 504].includes(
+				response.status,
 			);
+			if (!retryable || attempt === maxRetries) {
+				throw new Error(
+					`CDX API returned ${response.status}: ${await response.text()}`,
+				);
+			}
+
+			const delay = Math.pow(2, attempt + 1) * 5000; // 10s, 20s, 40s
+			console.warn(
+				`  CDX API returned ${response.status}, retrying in ${delay / 1000}s (attempt ${attempt + 1}/${maxRetries})`,
+			);
+			await new Promise((r) => setTimeout(r, delay));
 		}
 
-		const text = await response.text();
+		const text = await response!.text();
 		if (!text.trim()) {
 			this.writeCache(queryUrl, []);
 			return [];
