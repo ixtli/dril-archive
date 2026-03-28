@@ -15,3 +15,4 @@ theme-extractor/dist/
 site/dist/
 site/node_modules/
 site/public/sqlite3/
+site/public/dril.db

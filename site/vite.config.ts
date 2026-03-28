@@ -6,6 +6,11 @@ export default defineConfig({
 	optimizeDeps: {
 		exclude: ["@sqlite.org/sqlite-wasm"],
 	},
+	build: {
+		rollupOptions: {
+			external: ["/sqlite3/index.mjs"],
+		},
+	},
 	server: {
 		port: 3000,
 		headers: {
