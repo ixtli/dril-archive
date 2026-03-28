@@ -3,5 +3,6 @@
 /site/dril.db
 /site/sqlite3/
 node_modules/
+package-lock.json
 test-results/
 playwright-report/
