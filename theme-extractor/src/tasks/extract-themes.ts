@@ -78,7 +78,7 @@ async function extractStyles(
 
 			const styles: Record<string, Record<string, string>> = {};
 
-			function walkElement(el: Element, path: string) {
+			const walkElement = (el: Element, path: string) => {
 				const computed = getComputedStyle(el);
 				const styleMap: Record<string, string> = {};
 
@@ -103,7 +103,7 @@ async function extractStyles(
 						: "";
 					walkElement(child, `${path} > ${tag}${cls}:nth-child(${i + 1})`);
 				}
-			}
+			};
 
 			walkElement(container, selector);
 			return styles;

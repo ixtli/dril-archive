@@ -3,12 +3,12 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"select": "tsx src/tasks/select-samples.ts",
-		"discover": "tsx src/tasks/discover-samples.ts",
-		"extract:themes": "tsx src/tasks/extract-themes.ts",
-		"extract:profiles": "tsx src/tasks/extract-profiles.ts",
-		"build:themes": "tsx src/tasks/build-themes.ts",
-		"backfill": "tsx src/tasks/backfill-posts.ts"
+		"select": "bun src/tasks/select-samples.ts",
+		"discover": "bun src/tasks/discover-samples.ts",
+		"extract:themes": "bun src/tasks/extract-themes.ts",
+		"extract:profiles": "bun src/tasks/extract-profiles.ts",
+		"build:themes": "bun src/tasks/build-themes.ts",
+		"backfill": "bun src/tasks/backfill-posts.ts"
 	},
 	"devDependencies": {
 		"@types/better-sqlite3": "^7.6.13",
