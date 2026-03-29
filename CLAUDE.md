@@ -57,6 +57,7 @@ bun run build        # Production build to site/dist/
 ```
 
 For manual pipeline control:
+
 ```sh
 cargo build --release -p dril-normalizer -p dril-builder -p dril-bsky-sync
 ./target/release/dril-normalizer --source codemasher --input <dril.json> --output-dir data/
@@ -92,6 +93,7 @@ Pre-commit hooks enforce formatting and linting. They run automatically on `git 
 To manually run all hooks: `pre-commit run --all-files`
 
 To format before committing:
+
 ```sh
 cargo fmt
 bunx prettier --write 'site/src/**/*.svelte'
@@ -100,16 +102,16 @@ bunx @biomejs/biome format --write --html-formatter-enabled=true --css-formatter
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|-----------|
-| Normalizer | Rust, `serde`/`serde_json`, `chrono`, `DataSource` trait |
-| Builder | Rust, `rusqlite` 0.39 (bundled FTS5), `serde`/`serde_json` |
-| Search index | SQLite FTS5 (prefix matching, sub-50ms queries) |
-| Frontend | Svelte 5, Vite, `@sqlite.org/sqlite-wasm` (official SQLite WASM) |
-| E2E Testing | Playwright (headless Chromium, 14 tests) |
-| Theme Extractor | TypeScript, Playwright, better-sqlite3, Wayback Machine CDX API |
+| Component          | Technology                                                            |
+| ------------------ | --------------------------------------------------------------------- |
+| Normalizer         | Rust, `serde`/`serde_json`, `chrono`, `DataSource` trait              |
+| Builder            | Rust, `rusqlite` 0.39 (bundled FTS5), `serde`/`serde_json`            |
+| Search index       | SQLite FTS5 (prefix matching, sub-50ms queries)                       |
+| Frontend           | Svelte 5, Vite, `@sqlite.org/sqlite-wasm` (official SQLite WASM)      |
+| E2E Testing        | Playwright (headless Chromium, 14 tests)                              |
+| Theme Extractor    | TypeScript, Playwright, better-sqlite3, Wayback Machine CDX API       |
 | Formatting/Linting | Prettier (`.svelte` only), Biome (everything else), cargo fmt, clippy |
-| Git hooks | pre-commit framework |
+| Git hooks          | pre-commit framework                                                  |
 
 ## Conventions
 
@@ -138,23 +140,53 @@ The builder also accepts a single NDJSON file for simple use: `dril-builder post
 The normalizer outputs 4 files:
 
 **posts.ndjson** — one JSON object per line:
+
 ```json
-{"id":"123","text":"...","created_at":"2014-03-12T15:30:00Z","is_reply":false,"reply_to_user":null,"is_quote":false,"quoted_text":null,"likes":42000,"shares":12000}
+{
+  "id": "123",
+  "text": "...",
+  "created_at": "2014-03-12T15:30:00Z",
+  "is_reply": false,
+  "reply_to_user": null,
+  "is_quote": false,
+  "quoted_text": null,
+  "likes": 42000,
+  "shares": 12000
+}
 ```
 
 **reposts.ndjson** — retweets with original content:
+
 ```json
-{"id":"100","created_at":"...","original_post_id":"200","original_user_id":"300","original_text":"...","original_created_at":"...","likes":5000,"shares":1200}
+{
+  "id": "100",
+  "created_at": "...",
+  "original_post_id": "200",
+  "original_user_id": "300",
+  "original_text": "...",
+  "original_created_at": "...",
+  "likes": 5000,
+  "shares": 1200
+}
 ```
 
 **media.ndjson** — media attachments:
+
 ```json
-{"post_id":"123","type":"photo","url":"https://...","width":1200,"height":800,"alt_text":"..."}
+{
+  "post_id": "123",
+  "type": "photo",
+  "url": "https://...",
+  "width": 1200,
+  "height": 800,
+  "alt_text": "..."
+}
 ```
 
 **users.ndjson** — user lookup:
+
 ```json
-{"id":"16298441","screen_name":"dril","name":"wint"}
+{ "id": "16298441", "screen_name": "dril", "name": "wint" }
 ```
 
 Post URLs are derived from ID: `https://x.com/dril/status/{id}`
@@ -180,6 +212,7 @@ The `theme-extractor/` directory is a self-contained TypeScript project that scr
 The tooling is split into a **reusable core library** (`src/lib/`) and **task scripts** (`src/tasks/`):
 
 **Core library:**
+
 - `cdx.ts` — Wayback Machine CDX API client with disk-based response caching
 - `wayback-page.ts` — Playwright page loader with Wayback toolbar removal and retries
 - `rate-limiter.ts` — Configurable delay with jitter and exponential backoff (default 10s between page loads)
@@ -228,7 +261,6 @@ All extraction is manual and offline — never runs in CI. Results in `data/` ar
 ## Not Yet Implemented
 
 - **Media rendering** in the frontend (data is captured in the DB)
-- **Repost display** in the frontend (data is captured in the DB)
 - **Threads scraping** — Threads API requires OAuth; manual scraping or a future public API needed
 - **Profile snapshots** in the builder and frontend (extraction tooling is built, builder support is pending)
 - **Post backfill** for the 2023-2024 gap via Wayback Machine (tooling is built, crawl not yet run)
