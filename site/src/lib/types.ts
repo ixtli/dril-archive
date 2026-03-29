@@ -39,6 +39,8 @@ export interface Post {
 	media: MediaItem[];
 	is_repost: boolean;
 	original_user_id: string | null;
+	original_user_screen_name: string | null;
+	original_user_name: string | null;
 }
 
 export interface SearchState {

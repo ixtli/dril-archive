@@ -36,8 +36,14 @@
 		</div>
 		<div class="content-col">
 			<div class="header">
-				<span class="display-name">wint</span>
-				<span class="handle">@dril.bsky.social</span>
+				<span class="display-name"
+					>{post.is_repost && post.original_user_name ? post.original_user_name : "wint"}</span
+				>
+				<span class="handle"
+					>@{post.is_repost && post.original_user_screen_name
+						? post.original_user_screen_name
+						: "dril.bsky.social"}</span
+				>
 				<span class="separator">&middot;</span>
 				<span class="timestamp">{formattedDate}</span>
 			</div>

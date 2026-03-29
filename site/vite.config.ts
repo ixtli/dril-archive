@@ -51,8 +51,8 @@ function sqliteWasmPlugin(): Plugin {
 	};
 }
 
-export default defineConfig({
-	base: "/dril-archive/",
+export default defineConfig(({ command }) => ({
+	base: command === "build" ? "/dril-archive/" : "/",
 	plugins: [svelte(), sqliteWasmPlugin()],
 	optimizeDeps: {
 		exclude: ["@sqlite.org/sqlite-wasm"],
@@ -76,4 +76,4 @@ export default defineConfig({
 			"Cross-Origin-Embedder-Policy": "require-corp",
 		},
 	},
-});
+}));

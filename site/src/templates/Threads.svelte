@@ -36,7 +36,9 @@
 		</div>
 		<div class="content-col">
 			<div class="header">
-				<span class="display-name">wint</span>
+				<span class="display-name"
+					>{post.is_repost && post.original_user_name ? post.original_user_name : "wint"}</span
+				>
 				<span class="timestamp">{formattedDate}</span>
 			</div>
 			<div class="text">{post.text}</div>

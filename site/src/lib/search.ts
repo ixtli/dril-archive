@@ -97,7 +97,8 @@ export function executeSearch(
              'width', m.width, 'height', m.height,
              'alt_text', m.alt_text
            )) FROM media m WHERE m.post_id = t.id) AS media_json,
-           0 AS is_repost, NULL AS original_user_id
+           0 AS is_repost, NULL AS original_user_id,
+           NULL AS original_user_screen_name, NULL AS original_user_name
     FROM posts_fts f
     JOIN posts t ON t.rowid = f.rowid
     WHERE posts_fts MATCH ?
@@ -119,8 +120,11 @@ export function executeSearch(
                0 AS is_quote, NULL AS quoted_text,
                r.likes, r.shares, r.platform,
                '[]' AS media_json,
-               1 AS is_repost, r.original_user_id
+               1 AS is_repost, r.original_user_id,
+               u.screen_name AS original_user_screen_name,
+               u.name AS original_user_name
         FROM reposts r
+        LEFT JOIN users u ON u.id = r.original_user_id
         WHERE r.original_text LIKE ? ESCAPE '\\'
       )
       ${sortClause}
@@ -154,6 +158,8 @@ export function executeSearch(
 					media: parseMediaJson(row[10] as string | null),
 					is_repost: Boolean(row[11]),
 					original_user_id: row[12] as string | null,
+					original_user_screen_name: row[13] as string | null,
+					original_user_name: row[14] as string | null,
 				});
 			}
 			return results;
