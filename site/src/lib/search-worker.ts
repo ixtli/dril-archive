@@ -294,13 +294,16 @@ function getTotalCount(filters: FilterState, includeRetweets: boolean): number {
 	try {
 		const stmt = db.prepare(sql);
 		try {
-			stmt.bind(allParams);
+			if (allParams.length > 0) {
+				stmt.bind(allParams);
+			}
 			stmt.step();
 			return stmt.get([])[0] as number;
 		} finally {
 			stmt.finalize();
 		}
-	} catch {
+	} catch (err) {
+		console.error("getTotalCount error:", err, "sql:", sql, "params:", allParams);
 		return 0;
 	}
 }
