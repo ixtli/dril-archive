@@ -50,7 +50,8 @@ export async function initDb(onProgress: ProgressCallback): Promise<void> {
 	// Dynamic import with runtime-constructed URL to bypass Vite's static analysis.
 	// Vite blocks imports from public/ at transform time, but the middleware serves
 	// these files correctly at runtime.
-	const moduleUrl = new URL("/sqlite3/index.mjs", window.location.origin).href;
+	const moduleUrl = new URL(`${import.meta.env.BASE_URL}sqlite3/index.mjs`, window.location.origin)
+		.href;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const sqlite3InitModule = ((await import(/* @vite-ignore */ moduleUrl)) as any).default;
 	const sqlite3 = await sqlite3InitModule();

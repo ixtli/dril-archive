@@ -24,7 +24,7 @@ function sqliteWasmPlugin(): Plugin {
 		enforce: "pre",
 		resolveId(source) {
 			// Mark the runtime import as external so Vite skips transform
-			if (source === "/sqlite3/index.mjs") {
+			if (source === "/dril-archive/sqlite3/index.mjs" || source === "/sqlite3/index.mjs") {
 				return { id: source, external: true };
 			}
 			return null;
@@ -52,13 +52,14 @@ function sqliteWasmPlugin(): Plugin {
 }
 
 export default defineConfig({
+	base: "/dril-archive/",
 	plugins: [svelte(), sqliteWasmPlugin()],
 	optimizeDeps: {
 		exclude: ["@sqlite.org/sqlite-wasm"],
 	},
 	build: {
 		rollupOptions: {
-			external: ["/sqlite3/index.mjs"],
+			external: ["/sqlite3/index.mjs", "/dril-archive/sqlite3/index.mjs"],
 		},
 	},
 	server: {
