@@ -46,6 +46,7 @@ testdata/          Test fixtures
   codemasher/      Minimal codemasher archive fixture
 data/              Raw + intermediate data (gitignored)
 docs/superpowers/  Design specs and implementation plans
+  archive/         Completed specs and plans
 ```
 
 ## Build & Run
@@ -69,7 +70,7 @@ cargo build --release -p dril-normalizer -p dril-builder -p dril-bsky-sync
 
 ```sh
 cargo test                     # 28 Rust tests (19 builder + 9 normalizer)
-bun run test:e2e               # 14 Playwright E2E tests
+bun run test:e2e               # 15 Playwright E2E tests
 ```
 
 ## Dev Server
@@ -108,8 +109,9 @@ bunx @biomejs/biome format --write --html-formatter-enabled=true --css-formatter
 | Builder            | Rust, `rusqlite` 0.39 (bundled FTS5), `serde`/`serde_json`            |
 | Search index       | SQLite FTS5 (prefix matching, sub-50ms queries)                       |
 | Frontend           | Svelte 5, Vite, `@sqlite.org/sqlite-wasm` (official SQLite WASM)      |
-| E2E Testing        | Playwright (headless Chromium, 14 tests)                              |
+| E2E Testing        | Playwright (headless Chromium, 15 tests)                              |
 | Theme Extractor    | TypeScript, Playwright, better-sqlite3, Wayback Machine CDX API       |
+| Screenshot capture | html2canvas (lazy-loaded, client-side DOM-to-image)                   |
 | Formatting/Linting | Prettier (`.svelte` only), Biome (everything else), cargo fmt, clippy |
 | Git hooks          | pre-commit framework                                                  |
 
