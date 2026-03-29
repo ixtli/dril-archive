@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Post } from "../lib/types";
+	import MediaPlaceholder from "../components/MediaPlaceholder.svelte";
 
 	interface Props {
 		post: Post;
@@ -23,13 +24,19 @@
 		</div>
 	{/if}
 
+	{#if post.is_repost}
+		<div class="repost-banner" data-testid="repost-banner">
+			<span class="repost-icon">&#8635;</span> @dril retweeted
+		</div>
+	{/if}
+
 	<div class="card-layout">
 		<div class="avatar-col">
 			<div class="avatar-placeholder"></div>
 		</div>
 		<div class="content-col">
 			<div class="header">
-				<span class="display-name">dril</span>
+				<span class="display-name">wint</span>
 				<span class="handle">@dril.bsky.social</span>
 				<span class="separator">&middot;</span>
 				<span class="timestamp">{formattedDate}</span>
@@ -39,6 +46,9 @@
 				<div class="quoted">
 					<div class="quoted-text">{post.quoted_text}</div>
 				</div>
+			{/if}
+			{#if post.media.length > 0}
+				<MediaPlaceholder media={post.media} />
 			{/if}
 			<div class="engagement">
 				<span class="engagement-item">{post.likes.toLocaleString()} likes</span>
@@ -151,5 +161,15 @@
 		.engagement {
 			font-size: 12px;
 		}
+	}
+
+	.repost-banner {
+		font-size: 13px;
+		color: #8a8a8a;
+		padding: 0 0 4px 52px;
+	}
+
+	.repost-icon {
+		font-size: 12px;
 	}
 </style>
