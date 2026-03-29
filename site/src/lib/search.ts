@@ -1,4 +1,4 @@
-import type { Post, SortOption, FilterState } from "./types";
+import type { Post, SortOption, FilterState, MediaItem } from "./types";
 import { getDb } from "./db";
 
 export function buildFtsQuery(input: string): string {
@@ -63,6 +63,17 @@ function buildFilterClauses(filters: FilterState): { clauses: string[]; params: 
 	return { clauses, params };
 }
 
+function parseMediaJson(raw: string | null): MediaItem[] {
+	if (!raw) return [];
+	try {
+		const arr = JSON.parse(raw);
+		if (!Array.isArray(arr)) return [];
+		return arr.filter((item: unknown) => item !== null) as MediaItem[];
+	} catch {
+		return [];
+	}
+}
+
 export function executeSearch(input: string, sort: SortOption, filters: FilterState): Post[] {
 	const db = getDb();
 	if (!db) return [];
@@ -76,7 +87,12 @@ export function executeSearch(input: string, sort: SortOption, filters: FilterSt
 
 	const sql = `
     SELECT t.id, t.text, t.created_at, t.is_reply, t.reply_to_user,
-           t.is_quote, t.quoted_text, t.likes, t.shares, t.platform
+           t.is_quote, t.quoted_text, t.likes, t.shares, t.platform,
+           (SELECT json_group_array(json_object(
+             'type', m.type, 'url', m.url,
+             'width', m.width, 'height', m.height,
+             'alt_text', m.alt_text
+           )) FROM media m WHERE m.post_id = t.id) AS media_json
     FROM posts_fts f
     JOIN posts t ON t.rowid = f.rowid
     WHERE posts_fts MATCH ?
@@ -105,6 +121,9 @@ export function executeSearch(input: string, sort: SortOption, filters: FilterSt
 					likes: row[7] as number,
 					shares: row[8] as number,
 					platform: row[9] as string,
+					media: parseMediaJson(row[10] as string | null),
+					is_repost: false,
+					original_user_id: null,
 				});
 			}
 			return results;

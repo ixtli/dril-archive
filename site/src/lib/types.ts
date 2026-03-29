@@ -17,6 +17,14 @@ export interface FilterState {
 	type: TypeFilter;
 }
 
+export interface MediaItem {
+	type: string;
+	url: string;
+	width: number | null;
+	height: number | null;
+	alt_text: string | null;
+}
+
 export interface Post {
 	id: string;
 	text: string;
@@ -28,6 +36,9 @@ export interface Post {
 	likes: number;
 	shares: number;
 	platform: string;
+	media: MediaItem[];
+	is_repost: boolean;
+	original_user_id: string | null;
 }
 
 export interface SearchState {
