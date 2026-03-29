@@ -7,10 +7,12 @@
 		platformFilter: PlatformFilter;
 		typeFilter: TypeFilter;
 		themeOverride: ThemeId | "auto";
+		includeRetweets: boolean;
 		onSortChange: (sort: SortOption) => void;
 		onPlatformChange: (platform: PlatformFilter) => void;
 		onTypeChange: (type: TypeFilter) => void;
 		onThemeChange: (theme: ThemeId | "auto") => void;
+		onRetweetsChange: (include: boolean) => void;
 	}
 
 	let {
@@ -18,10 +20,12 @@
 		platformFilter,
 		typeFilter,
 		themeOverride,
+		includeRetweets,
 		onSortChange,
 		onPlatformChange,
 		onTypeChange,
 		onThemeChange,
+		onRetweetsChange,
 	}: Props = $props();
 
 	const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -103,6 +107,18 @@
 			{/each}
 		</select>
 	</div>
+
+	<div class="control-group checkbox-group">
+		<label class="checkbox-label">
+			<input
+				type="checkbox"
+				data-testid="retweets-toggle"
+				checked={includeRetweets}
+				onchange={(e) => onRetweetsChange((e.target as HTMLInputElement).checked)}
+			/>
+			Include retweets
+		</label>
+	</div>
 </div>
 
 <style>
@@ -146,6 +162,24 @@
 
 	select:focus {
 		border-color: #4a9eff;
+	}
+
+	.checkbox-group {
+		justify-content: center;
+	}
+
+	.checkbox-label {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 0.85rem;
+		color: #e0e0e0;
+		cursor: pointer;
+	}
+
+	.checkbox-label input[type="checkbox"] {
+		accent-color: #4a9eff;
+		cursor: pointer;
 	}
 
 	@media (max-width: 639px) {

@@ -25,6 +25,7 @@
 	let filters = $state<FilterState>({ platform: "all", type: "all" });
 	let controlsOpen = $state(false);
 	let themeOverride = $state<ThemeId | "auto">("auto");
+	let includeRetweets = $state(true);
 
 	async function init() {
 		try {
@@ -50,7 +51,7 @@
 			results = [];
 			return;
 		}
-		debouncedSearch(value, sort, filters, true, (r) => {
+		debouncedSearch(value, sort, filters, includeRetweets, (r) => {
 			results = r;
 		});
 	}
@@ -61,7 +62,7 @@
 
 	function rerunSearch() {
 		if (!query.trim()) return;
-		debouncedSearch(query, sort, filters, true, (r) => {
+		debouncedSearch(query, sort, filters, includeRetweets, (r) => {
 			results = r;
 		});
 	}
@@ -85,6 +86,11 @@
 		themeOverride = newTheme;
 	}
 
+	function handleRetweetsChange(include: boolean) {
+		includeRetweets = include;
+		rerunSearch();
+	}
+
 	init();
 </script>
 
@@ -102,10 +108,12 @@
 				platformFilter={filters.platform}
 				typeFilter={filters.type}
 				{themeOverride}
+				{includeRetweets}
 				onSortChange={handleSortChange}
 				onPlatformChange={handlePlatformChange}
 				onTypeChange={handleTypeChange}
 				onThemeChange={handleThemeChange}
+				onRetweetsChange={handleRetweetsChange}
 			/>
 		{/if}
 
