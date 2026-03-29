@@ -9,13 +9,19 @@ test.describe("dril archive search", () => {
 	}
 
 	// Helper: type a query and wait for results
-	async function searchFor(page: import("@playwright/test").Page, query: string) {
+	async function searchFor(
+		page: import("@playwright/test").Page,
+		query: string,
+	) {
 		const searchInput = await waitForReady(page);
 		await searchInput.fill(query);
 		const results = page.locator('[data-testid="results"]');
-		await expect(results.locator('[data-testid="post-card"]')).not.toHaveCount(0, {
-			timeout: 5_000,
-		});
+		await expect(results.locator('[data-testid="post-card"]')).not.toHaveCount(
+			0,
+			{
+				timeout: 5_000,
+			},
+		);
 		return results;
 	}
 
@@ -71,7 +77,9 @@ test.describe("dril archive search", () => {
 
 	// --- New tests ---
 
-	test("era theme rendering - classic era gets twitter-classic", async ({ page }) => {
+	test("era theme rendering - classic era gets twitter-classic", async ({
+		page,
+	}) => {
 		await page.goto("/");
 		// Post id=1 "no" is from 2008 -> twitter-classic era
 		const results = await searchFor(page, "no");
@@ -81,7 +89,9 @@ test.describe("dril archive search", () => {
 		await expect(classicCard).toBeVisible();
 	});
 
-	test("era theme rendering - modern era gets twitter-modern", async ({ page }) => {
+	test("era theme rendering - modern era gets twitter-modern", async ({
+		page,
+	}) => {
 		await page.goto("/");
 		// Post id=4 "betsy ross" is from 2019 -> twitter-modern era
 		const results = await searchFor(page, "betsy ross");
@@ -91,36 +101,44 @@ test.describe("dril archive search", () => {
 		await expect(modernCard).toHaveCount(1);
 	});
 
-	test("platform template - bluesky post uses bsky template", async ({ page }) => {
+	test("platform template - bluesky post uses bsky template", async ({
+		page,
+	}) => {
 		await page.goto("/");
 		// Bluesky test post contains "bluesky test post about posting"
 		const searchInput = await waitForReady(page);
 		await searchInput.fill("bluesky");
 		const results = page.locator('[data-testid="results"]');
-		const bskyCard = results.locator('[data-testid="post-card"][data-theme="bsky"]');
+		const bskyCard = results.locator(
+			'[data-testid="post-card"][data-theme="bsky"]',
+		);
 		await expect(bskyCard).toHaveCount(1, { timeout: 5_000 });
 	});
 
-	test("controls panel toggle - cog opens and closes", async ({ page }) => {
+	test("controls panel toggle - disclosure opens and closes", async ({
+		page,
+	}) => {
 		await page.goto("/");
 		await waitForReady(page);
 
 		const controlsToggle = page.locator('[data-testid="controls-toggle"]');
-		const controlsPanel = page.locator('[data-testid="controls-panel"]');
+		const sortSelect = page.locator('[data-testid="sort-select"]');
 
-		// Controls should be hidden initially
-		await expect(controlsPanel).not.toBeVisible();
+		// Controls body should be hidden initially
+		await expect(sortSelect).not.toBeVisible();
 
-		// Click cog to open
+		// Click disclosure to open
 		await controlsToggle.click();
-		await expect(controlsPanel).toBeVisible();
+		await expect(sortSelect).toBeVisible();
 
-		// Click cog to close
+		// Click disclosure to close
 		await controlsToggle.click();
-		await expect(controlsPanel).not.toBeVisible();
+		await expect(sortSelect).not.toBeVisible();
 	});
 
-	test("sort by newest - results in date descending order", async ({ page }) => {
+	test("sort by newest - results in date descending order", async ({
+		page,
+	}) => {
 		await page.goto("/");
 		await waitForReady(page);
 
@@ -132,9 +150,12 @@ test.describe("dril archive search", () => {
 		const searchInput = page.locator('[data-testid="search-input"]');
 		await searchInput.fill("the");
 		const results = page.locator('[data-testid="results"]');
-		await expect(results.locator('[data-testid="post-card"]')).not.toHaveCount(0, {
-			timeout: 5_000,
-		});
+		await expect(results.locator('[data-testid="post-card"]')).not.toHaveCount(
+			0,
+			{
+				timeout: 5_000,
+			},
+		);
 
 		// Get all post cards and verify dates are in descending order
 		const cards = results.locator('[data-testid="post-card"]');
@@ -151,7 +172,9 @@ test.describe("dril archive search", () => {
 		const firstYear = firstText?.match(/\b(20\d{2})\b/);
 		const lastYear = lastText?.match(/\b(20\d{2})\b/);
 		if (firstYear && lastYear) {
-			expect(parseInt(firstYear[1])).toBeGreaterThanOrEqual(parseInt(lastYear[1]));
+			expect(parseInt(firstYear[1])).toBeGreaterThanOrEqual(
+				parseInt(lastYear[1]),
+			);
 		}
 	});
 
@@ -163,12 +186,17 @@ test.describe("dril archive search", () => {
 		const searchInput = page.locator('[data-testid="search-input"]');
 		await searchInput.fill("post");
 		const results = page.locator('[data-testid="results"]');
-		await expect(results.locator('[data-testid="post-card"]')).not.toHaveCount(0, {
-			timeout: 5_000,
-		});
+		await expect(results.locator('[data-testid="post-card"]')).not.toHaveCount(
+			0,
+			{
+				timeout: 5_000,
+			},
+		);
 
 		// Confirm Bluesky result exists before filtering
-		const bskyBefore = results.locator('[data-testid="post-card"][data-theme="bsky"]');
+		const bskyBefore = results.locator(
+			'[data-testid="post-card"][data-theme="bsky"]',
+		);
 		await expect(bskyBefore).toHaveCount(1);
 
 		// Open controls and filter to X only
@@ -191,7 +219,9 @@ test.describe("dril archive search", () => {
 
 		// Open controls and override theme
 		await page.locator('[data-testid="controls-toggle"]').click();
-		await page.locator('[data-testid="theme-select"]').selectOption("twitter-classic");
+		await page
+			.locator('[data-testid="theme-select"]')
+			.selectOption("twitter-classic");
 
 		// Search for a modern-era post
 		const searchInput = page.locator('[data-testid="search-input"]');
@@ -272,7 +302,9 @@ test.describe("dril archive search", () => {
 		await expect(media).toContainText("1 image attached");
 	});
 
-	test("media placeholder click-to-load shows image or error", async ({ page }) => {
+	test("media placeholder click-to-load shows image or error", async ({
+		page,
+	}) => {
 		await page.goto("/");
 		const results = await searchFor(page, "zoo");
 		const media = results.locator('[data-testid="media-placeholder"]');
@@ -284,5 +316,44 @@ test.describe("dril archive search", () => {
 		// Since the URL is fake, expect error
 		const errorOrImg = media.locator(".media-error, img");
 		await expect(errorOrImg).toBeVisible({ timeout: 10_000 });
+	});
+
+	test("save as image menu item appears and opens overlay", async ({
+		page,
+	}) => {
+		await page.goto("/");
+		const results = await searchFor(page, "corn cob");
+		const card = results.locator('[data-testid="post-card"]').first();
+
+		// Hover to reveal menu button, then click it
+		await card.hover();
+		const moreButton = card.locator("button[aria-label='Post options']");
+		await moreButton.click();
+
+		// "Save as image" should be in the popover
+		const saveItem = card.locator("button.popover-item", {
+			hasText: "Save as image",
+		});
+		await expect(saveItem).toBeVisible();
+
+		// Click it
+		await saveItem.click();
+
+		// Overlay should appear with an image
+		const overlay = page.locator('[data-testid="screenshot-overlay"]');
+		await expect(overlay).toBeVisible({ timeout: 5_000 });
+		const img = overlay.locator("img");
+		await expect(img).toBeVisible();
+
+		// Should have the mobile hint text
+		await expect(overlay).toContainText("Long-press image to save on mobile");
+
+		// Should have a download link
+		const downloadLink = overlay.locator("a[download]");
+		await expect(downloadLink).toBeVisible();
+
+		// Close overlay by clicking backdrop
+		await overlay.click({ position: { x: 5, y: 5 } });
+		await expect(overlay).not.toBeVisible();
 	});
 });
