@@ -54,6 +54,7 @@
 	ontouchstart={handleTouchStart}
 	ontouchend={handleTouchEnd}
 	ontouchmove={handleTouchEnd}
+	onmouseleave={closeMenu}
 >
 	{#if theme === "twitter-classic"}
 		<TwitterClassic {post} />
@@ -79,7 +80,9 @@
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 		>
-			<a href={url} target="_blank" rel="noopener" class="popover-item"> View original </a>
+			<a href={url} target="_blank" rel="noopener" class="popover-item" onclick={closeMenu}>
+				View original
+			</a>
 		</div>
 	{/if}
 </div>
