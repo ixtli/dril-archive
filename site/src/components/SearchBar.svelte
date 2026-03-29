@@ -1,11 +1,14 @@
 <script lang="ts">
 	interface Props {
 		value: string;
+		searching: boolean;
+		resultCount: number | null;
+		totalCount: number | null;
 		onInput: (value: string) => void;
 		onToggleControls: () => void;
 	}
 
-	let { value, onInput, onToggleControls }: Props = $props();
+	let { value, searching, resultCount, totalCount, onInput, onToggleControls }: Props = $props();
 
 	function handleInput(e: Event) {
 		const target = e.target as HTMLInputElement;
@@ -14,15 +17,25 @@
 </script>
 
 <div class="search-bar">
-	<input
-		type="text"
-		class="search-input"
-		data-testid="search-input"
-		placeholder="search dril posts..."
-		autocomplete="off"
-		{value}
-		oninput={handleInput}
-	/>
+	<div class="search-input-wrapper">
+		<input
+			type="text"
+			class="search-input"
+			data-testid="search-input"
+			placeholder="search dril posts..."
+			autocomplete="off"
+			{value}
+			oninput={handleInput}
+		/>
+		<div class="status-line" data-testid="search-status">
+			{#if searching}
+				<span class="spinner"></span>
+				<span>searching...</span>
+			{:else if resultCount !== null && totalCount !== null}
+				<span>{resultCount} / {totalCount}</span>
+			{/if}
+		</div>
+	</div>
 	<button
 		class="controls-toggle"
 		data-testid="controls-toggle"
@@ -42,23 +55,59 @@
 	.search-bar {
 		display: flex;
 		gap: 8px;
-		align-items: center;
+		align-items: flex-start;
 	}
 
-	.search-input {
+	.search-input-wrapper {
 		flex: 1;
-		padding: 12px 16px;
-		font-size: 1.1rem;
-		font-family: inherit;
+		position: relative;
 		background: #2a2a2a;
 		border: 1px solid #444;
 		border-radius: 6px;
-		color: #e0e0e0;
-		outline: none;
 	}
 
-	.search-input:focus {
+	.search-input-wrapper:focus-within {
 		border-color: #4a9eff;
+	}
+
+	.search-input {
+		width: 100%;
+		padding: 12px 16px 28px 16px;
+		font-size: 1.1rem;
+		font-family: inherit;
+		background: transparent;
+		border: none;
+		color: #e0e0e0;
+		outline: none;
+		box-sizing: border-box;
+	}
+
+	.status-line {
+		position: absolute;
+		bottom: 4px;
+		left: 16px;
+		right: 16px;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 0.75rem;
+		color: #666;
+		height: 16px;
+	}
+
+	.spinner {
+		width: 10px;
+		height: 10px;
+		border: 1.5px solid #444;
+		border-top-color: #4a9eff;
+		border-radius: 50%;
+		animation: spin 0.6s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 
 	.controls-toggle {
@@ -80,8 +129,13 @@
 
 	@media (max-width: 639px) {
 		.search-input {
-			padding: 10px 12px;
+			padding: 10px 12px 26px 12px;
 			font-size: 1rem;
+		}
+
+		.status-line {
+			left: 12px;
+			right: 12px;
 		}
 
 		.controls-toggle {

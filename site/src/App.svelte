@@ -21,6 +21,8 @@
 	let query = $state("");
 	let results = $state<Post[]>([]);
 	let searching = $state(false);
+	let resultCount = $state<number | null>(null);
+	let totalCount = $state<number | null>(null);
 	let sort = $state<SortOption>("relevance");
 	let filters = $state<FilterState>({ platform: "all", type: "all" });
 	let controlsOpen = $state(false);
@@ -53,6 +55,8 @@
 		if (!input.trim()) {
 			searching = false;
 			results = [];
+			resultCount = null;
+			totalCount = null;
 			return;
 		}
 		searching = true;
@@ -60,7 +64,9 @@
 		debounceTimer = setTimeout(async () => {
 			const r = await search(input, sort, filters, includeRetweets);
 			if (version === searchVersion) {
-				results = r;
+				results = r.results;
+				resultCount = r.results.length;
+				totalCount = r.totalCount;
 				searching = false;
 			}
 		}, 120);
@@ -113,7 +119,14 @@
 	{#if loading}
 		<LoadingBar {progress} message={loadingMessage} />
 	{:else}
-		<SearchBar value={query} onInput={handleInput} onToggleControls={handleToggleControls} />
+		<SearchBar
+			value={query}
+			{searching}
+			{resultCount}
+			{totalCount}
+			onInput={handleInput}
+			onToggleControls={handleToggleControls}
+		/>
 
 		{#if controlsOpen}
 			<Controls
@@ -131,12 +144,7 @@
 		{/if}
 
 		<div class="results" data-testid="results">
-			{#if searching}
-				<div class="searching" data-testid="searching-indicator">
-					<span class="spinner"></span>
-					<span>searching...</span>
-				</div>
-			{:else if query.trim() && results.length === 0}
+			{#if !searching && query.trim() && results.length === 0}
 				<p class="no-results">no results</p>
 			{/if}
 			{#each results as post (post.id)}
@@ -161,29 +169,6 @@
 
 	.results {
 		margin-top: 12px;
-	}
-
-	.searching {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		color: #888;
-		margin-top: 20px;
-	}
-
-	.spinner {
-		width: 16px;
-		height: 16px;
-		border: 2px solid #444;
-		border-top-color: #4a9eff;
-		border-radius: 50%;
-		animation: spin 0.6s linear infinite;
-	}
-
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
 	}
 
 	.no-results {

@@ -14,6 +14,7 @@ import { join } from "path";
  */
 function sqliteWasmPlugin(): Plugin {
 	const MIME: Record<string, string> = {
+		".js": "application/javascript",
 		".mjs": "application/javascript",
 		".wasm": "application/wasm",
 		".db": "application/octet-stream",

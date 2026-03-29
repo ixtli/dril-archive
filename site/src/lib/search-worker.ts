@@ -3,16 +3,10 @@ import type { SortOption, FilterState, Post, MediaItem } from "./types";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let db: any = null;
 
+// prettier-ignore
 type WorkerMessage =
 	| { type: "init"; sqliteUrl: string; dbUrl: string }
-	| {
-			type: "search";
-			id: number;
-			query: string;
-			sort: SortOption;
-			filters: FilterState;
-			includeRetweets: boolean;
-		};
+	| { type: "search"; id: number; query: string; sort: SortOption; filters: FilterState; includeRetweets: boolean };
 
 self.onmessage = async (e: MessageEvent<WorkerMessage>) => {
 	const msg = e.data;
@@ -113,9 +107,7 @@ function buildSortClause(sort: SortOption, hasUnion: boolean): string {
 		case "relevance":
 			return hasUnion ? "ORDER BY created_at DESC" : "ORDER BY rank";
 		case "newest":
-			return hasUnion
-				? "ORDER BY created_at DESC"
-				: "ORDER BY t.created_at DESC";
+			return hasUnion ? "ORDER BY created_at DESC" : "ORDER BY t.created_at DESC";
 		case "oldest":
 			return hasUnion ? "ORDER BY created_at ASC" : "ORDER BY t.created_at ASC";
 		case "most-liked":
@@ -258,12 +250,57 @@ function handleSearch(
 					original_user_name: row[14] as string | null,
 				});
 			}
-			self.postMessage({ type: "results", id, results });
+			self.postMessage({
+				type: "results",
+				id,
+				results,
+				totalCount: getTotalCount(filters, includeRetweets),
+			});
 		} finally {
 			stmt.finalize();
 		}
 	} catch (err) {
 		console.error("Search error:", err);
-		self.postMessage({ type: "results", id, results: [] });
+		self.postMessage({ type: "results", id, results: [], totalCount: 0 });
+	}
+}
+
+function getTotalCount(filters: FilterState, includeRetweets: boolean): number {
+	if (!db) return 0;
+
+	const { clauses, params } = buildFilterClauses(filters);
+	const filterSql = clauses.join("\n    ");
+
+	let sql = `SELECT COUNT(*) FROM posts t WHERE 1=1 ${filterSql}`;
+	const allParams = [...params];
+
+	if (includeRetweets) {
+		// Add repost count with same platform filter if applicable
+		let repostFilter = "";
+		const repostParams: unknown[] = [];
+		if (filters.platform !== "all") {
+			const platformMap: Record<string, string> = {
+				x: "x",
+				bsky: "bsky",
+				threads: "threads",
+			};
+			repostFilter = "WHERE r.platform = ?";
+			repostParams.push(platformMap[filters.platform]);
+		}
+		sql = `SELECT (${sql}) + (SELECT COUNT(*) FROM reposts r ${repostFilter})`;
+		allParams.push(...repostParams);
+	}
+
+	try {
+		const stmt = db.prepare(sql);
+		try {
+			stmt.bind(allParams);
+			stmt.step();
+			return stmt.get([])[0] as number;
+		} finally {
+			stmt.finalize();
+		}
+	} catch {
+		return 0;
 	}
 }
