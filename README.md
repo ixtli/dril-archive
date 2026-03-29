@@ -1,4 +1,4 @@
-# dril-archive
+# [dril-archive](https://ixtli.github.io/dril-archive/)
 
 A searchable archive of [@dril](https://x.com/dril) posts that runs entirely in your browser. No server required — just static files you can host anywhere.
 
