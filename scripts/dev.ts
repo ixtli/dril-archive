@@ -20,7 +20,7 @@ copyFileSync(join(SQLITE_SRC, "sqlite3.wasm"), join(SQLITE3_DIR, "sqlite3.wasm")
 // Always rebuild the test DB from sample data to ensure tests use the correct fixture.
 // A stale full-archive DB here causes E2E test failures.
 console.log("Building test database from sample data...");
-execSync("cargo run -p dril-builder -- testdata/sample.ndjson site/vendor/dril.db", {
+execSync("cargo run -p dril-builder -- testdata/dir-test site/vendor/dril.db", {
 	stdio: "inherit",
 	cwd: ROOT_DIR,
 });
