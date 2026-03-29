@@ -32,7 +32,13 @@
 
 	<div class="card-layout">
 		<div class="avatar-col">
-			<div class="avatar-placeholder"></div>
+			<img
+				class="avatar"
+				src="{import.meta.env.BASE_URL}avatars/normal.jpeg"
+				alt="@dril avatar"
+				width="48"
+				height="48"
+			/>
 		</div>
 		<div class="content-col">
 			<div class="header">
@@ -94,11 +100,11 @@
 		flex-shrink: 0;
 	}
 
-	.avatar-placeholder {
+	.avatar {
 		width: 48px;
 		height: 48px;
 		border-radius: 4px;
-		background: #e1e8ed;
+		display: block;
 	}
 
 	.content-col {
