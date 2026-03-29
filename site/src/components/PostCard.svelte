@@ -233,8 +233,8 @@
 
 	.screenshot-close {
 		position: absolute;
-		top: 8px;
-		right: 12px;
+		top: 0px;
+		right: 5px;
 		background: none;
 		border: none;
 		color: #999;

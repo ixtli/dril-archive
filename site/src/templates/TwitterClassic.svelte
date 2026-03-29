@@ -7,6 +7,14 @@
 	}
 
 	let { post }: Props = $props();
+
+	let formattedDate = $derived(
+		new Date(post.created_at).toLocaleDateString("en-US", {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+		}),
+	);
 </script>
 
 <article class="twitter-classic-card">
@@ -55,6 +63,7 @@
 			<div class="engagement">
 				<span class="engagement-item">{post.likes.toLocaleString()} likes</span>
 				<span class="engagement-item">{post.shares.toLocaleString()} shares</span>
+				<span class="engagement-item">{formattedDate}</span>
 			</div>
 		</div>
 	</div>

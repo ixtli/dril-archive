@@ -6,7 +6,14 @@ let db: any = null;
 // prettier-ignore
 type WorkerMessage =
 	| { type: "init"; sqliteUrl: string; dbUrl: string }
-	| { type: "search"; id: number; query: string; sort: SortOption; filters: FilterState; includeRetweets: boolean };
+	| {
+			type: "search";
+			id: number;
+			query: string;
+			sort: SortOption;
+			filters: FilterState;
+			includeRetweets: boolean;
+		};
 
 self.onmessage = async (e: MessageEvent<WorkerMessage>) => {
 	const msg = e.data;
@@ -81,8 +88,8 @@ async function initSqlite(dbData: Uint8Array, sqliteUrl: string) {
 		phase: "Preparing search...",
 	});
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const sqlite3InitModule = ((await import(/* @vite-ignore */ sqliteUrl)) as any).default;
+	const sqlite3InitModule = // eslint-disable-next-line @typescript-eslint/no-explicit-any
+		((await import(/* @vite-ignore */ sqliteUrl)) as any).default;
 	const sqlite3 = await sqlite3InitModule();
 
 	sqlite3.capi.sqlite3_js_posix_create_file("/dril.db", dbData);

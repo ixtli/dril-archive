@@ -25,7 +25,6 @@
 	let totalCount = $state<number | null>(null);
 	let sort = $state<SortOption>("relevance");
 	let filters = $state<FilterState>({ platform: "all", type: "all" });
-	let controlsOpen = $state(false);
 	let themeOverride = $state<ThemeId | "auto">("auto");
 	let includeRetweets = $state(true);
 	let searchVersion = 0;
@@ -77,8 +76,12 @@
 		runSearch(value);
 	}
 
-	function handleToggleControls() {
-		controlsOpen = !controlsOpen;
+	function handleReset() {
+		sort = "relevance";
+		filters = { platform: "all", type: "all" };
+		themeOverride = "auto";
+		includeRetweets = true;
+		rerunSearch();
 	}
 
 	function rerunSearch() {
@@ -119,29 +122,21 @@
 	{#if loading}
 		<LoadingBar {progress} message={loadingMessage} />
 	{:else}
-		<SearchBar
-			value={query}
-			{searching}
-			{resultCount}
-			{totalCount}
-			onInput={handleInput}
-			onToggleControls={handleToggleControls}
-		/>
+		<SearchBar value={query} {searching} {resultCount} {totalCount} onInput={handleInput} />
 
-		{#if controlsOpen}
-			<Controls
-				{sort}
-				platformFilter={filters.platform}
-				typeFilter={filters.type}
-				{themeOverride}
-				{includeRetweets}
-				onSortChange={handleSortChange}
-				onPlatformChange={handlePlatformChange}
-				onTypeChange={handleTypeChange}
-				onThemeChange={handleThemeChange}
-				onRetweetsChange={handleRetweetsChange}
-			/>
-		{/if}
+		<Controls
+			{sort}
+			platformFilter={filters.platform}
+			typeFilter={filters.type}
+			{themeOverride}
+			{includeRetweets}
+			onSortChange={handleSortChange}
+			onPlatformChange={handlePlatformChange}
+			onTypeChange={handleTypeChange}
+			onThemeChange={handleThemeChange}
+			onRetweetsChange={handleRetweetsChange}
+			onReset={handleReset}
+		/>
 
 		<div class="results" data-testid="results">
 			{#if !searching && query.trim() && results.length === 0}
