@@ -1,69 +1,87 @@
-type ProgressCallback = (received: number, total: number, phase: string) => void;
+import type { Post, SortOption, FilterState } from "./types";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let db: any = null;
+type ProgressCallback = (
+	received: number,
+	total: number,
+	phase: string,
+) => void;
 
-const DB_URL = "dril.db";
-
-async function fetchWithProgress(url: string, onProgress: ProgressCallback): Promise<Uint8Array> {
-	const response = await fetch(url);
-	if (!response.ok) {
-		throw new Error(`Failed to fetch ${url}: ${response.status}`);
-	}
-
-	const contentLength = response.headers.get("Content-Length");
-	if (!contentLength || !response.body) {
-		onProgress(0, 0, "Downloading archive...");
-		const buf = await response.arrayBuffer();
-		return new Uint8Array(buf);
-	}
-
-	const total = parseInt(contentLength, 10);
-	let received = 0;
-	const chunks: Uint8Array[] = [];
-	const reader = response.body.getReader();
-
-	let done = false;
-	while (!done) {
-		let value: Uint8Array | undefined;
-		({ done, value } = await reader.read());
-		if (done || !value) break;
-		chunks.push(value);
-		received += value.length;
-		onProgress(received, total, "Downloading archive...");
-	}
-
-	const result = new Uint8Array(received);
-	let offset = 0;
-	for (const chunk of chunks) {
-		result.set(chunk, offset);
-		offset += chunk.length;
-	}
-	return result;
-}
+let worker: Worker | null = null;
+let searchId = 0;
+let pendingSearchResolve: ((results: Post[]) => void) | null = null;
+let pendingSearchId = 0;
+let ready = false;
 
 export async function initDb(onProgress: ProgressCallback): Promise<void> {
-	const dbData = await fetchWithProgress(DB_URL, onProgress);
+	return new Promise<void>((resolve, reject) => {
+		worker = new Worker(new URL("./search-worker.ts", import.meta.url), {
+			type: "module",
+		});
 
-	onProgress(dbData.length, dbData.length, "Preparing search...");
+		worker.onmessage = (e) => {
+			const msg = e.data;
+			if (msg.type === "progress") {
+				onProgress(msg.received, msg.total, msg.phase);
+			} else if (msg.type === "ready") {
+				ready = true;
+				// Switch to search handler after init
+				worker!.onmessage = handleSearchMessage;
+				resolve();
+			} else if (msg.type === "error") {
+				reject(new Error(msg.message));
+			}
+		};
 
-	// Dynamic import with runtime-constructed URL to bypass Vite's static analysis.
-	// Vite blocks imports from public/ at transform time, but the middleware serves
-	// these files correctly at runtime.
-	const moduleUrl = new URL(`${import.meta.env.BASE_URL}sqlite3/index.mjs`, window.location.origin)
-		.href;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const sqlite3InitModule = ((await import(/* @vite-ignore */ moduleUrl)) as any).default;
-	const sqlite3 = await sqlite3InitModule();
-
-	sqlite3.capi.sqlite3_js_posix_create_file("/dril.db", dbData);
-	db = new sqlite3.oo1.DB("/dril.db", "r");
+		const baseUrl = import.meta.env.BASE_URL;
+		const sqliteUrl = new URL(
+			`${baseUrl}sqlite3/index.mjs`,
+			window.location.origin,
+		).href;
+		const dbUrl = new URL(`${baseUrl}dril.db`, window.location.origin).href;
+		worker.postMessage({ type: "init", sqliteUrl, dbUrl });
+	});
 }
 
-export function getDb() {
-	return db;
+function handleSearchMessage(e: MessageEvent) {
+	const msg = e.data;
+	if (
+		msg.type === "results" &&
+		msg.id === pendingSearchId &&
+		pendingSearchResolve
+	) {
+		pendingSearchResolve(msg.results);
+		pendingSearchResolve = null;
+	}
 }
 
 export function isDbReady(): boolean {
-	return db !== null;
+	return ready;
+}
+
+export function search(
+	query: string,
+	sort: SortOption,
+	filters: FilterState,
+	includeRetweets: boolean,
+): Promise<Post[]> {
+	if (!worker || !ready) return Promise.resolve([]);
+	if (!query.trim()) return Promise.resolve([]);
+
+	const id = ++searchId;
+	pendingSearchId = id;
+
+	// Unwrap Svelte 5 $state proxies — Proxy objects can't be structured-cloned
+	const plainFilters = { platform: filters.platform, type: filters.type };
+
+	return new Promise<Post[]>((resolve) => {
+		pendingSearchResolve = resolve;
+		worker!.postMessage({
+			type: "search",
+			id,
+			query,
+			sort,
+			filters: plainFilters,
+			includeRetweets,
+		});
+	});
 }

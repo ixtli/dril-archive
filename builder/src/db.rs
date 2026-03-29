@@ -23,7 +23,8 @@ pub fn create_db(path: &std::path::Path) -> Result<Connection, String> {
             text,
             quoted_text,
             content='posts',
-            content_rowid='rowid'
+            content_rowid='rowid',
+            prefix='2 3'
         );
 
         CREATE TABLE reposts (
@@ -47,6 +48,8 @@ pub fn create_db(path: &std::path::Path) -> Result<Connection, String> {
             height INTEGER,
             alt_text TEXT
         );
+
+        CREATE INDEX media_post_id_idx ON media(post_id);
 
         CREATE TABLE users (
             id TEXT PRIMARY KEY,

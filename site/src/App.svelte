@@ -7,8 +7,7 @@
 		PlatformFilter,
 		TypeFilter,
 	} from "./lib/types";
-	import { initDb } from "./lib/db";
-	import { debouncedSearch } from "./lib/search";
+	import { initDb, search } from "./lib/db";
 	import LoadingBar from "./components/LoadingBar.svelte";
 	import SearchBar from "./components/SearchBar.svelte";
 	import Controls from "./components/Controls.svelte";
@@ -21,11 +20,13 @@
 
 	let query = $state("");
 	let results = $state<Post[]>([]);
+	let searching = $state(false);
 	let sort = $state<SortOption>("relevance");
 	let filters = $state<FilterState>({ platform: "all", type: "all" });
 	let controlsOpen = $state(false);
 	let themeOverride = $state<ThemeId | "auto">("auto");
 	let includeRetweets = $state(true);
+	let searchVersion = 0;
 
 	async function init() {
 		try {
@@ -45,15 +46,29 @@
 		}
 	}
 
-	function handleInput(value: string) {
-		query = value;
-		if (!value.trim()) {
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function runSearch(input: string) {
+		if (debounceTimer) clearTimeout(debounceTimer);
+		if (!input.trim()) {
+			searching = false;
 			results = [];
 			return;
 		}
-		debouncedSearch(value, sort, filters, includeRetweets, (r) => {
-			results = r;
-		});
+		searching = true;
+		const version = ++searchVersion;
+		debounceTimer = setTimeout(async () => {
+			const r = await search(input, sort, filters, includeRetweets);
+			if (version === searchVersion) {
+				results = r;
+				searching = false;
+			}
+		}, 120);
+	}
+
+	function handleInput(value: string) {
+		query = value;
+		runSearch(value);
 	}
 
 	function handleToggleControls() {
@@ -62,9 +77,7 @@
 
 	function rerunSearch() {
 		if (!query.trim()) return;
-		debouncedSearch(query, sort, filters, includeRetweets, (r) => {
-			results = r;
-		});
+		runSearch(query);
 	}
 
 	function handleSortChange(newSort: SortOption) {
@@ -118,7 +131,12 @@
 		{/if}
 
 		<div class="results" data-testid="results">
-			{#if query.trim() && results.length === 0}
+			{#if searching}
+				<div class="searching" data-testid="searching-indicator">
+					<span class="spinner"></span>
+					<span>searching...</span>
+				</div>
+			{:else if query.trim() && results.length === 0}
 				<p class="no-results">no results</p>
 			{/if}
 			{#each results as post (post.id)}
@@ -143,6 +161,29 @@
 
 	.results {
 		margin-top: 12px;
+	}
+
+	.searching {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		color: #888;
+		margin-top: 20px;
+	}
+
+	.spinner {
+		width: 16px;
+		height: 16px;
+		border: 2px solid #444;
+		border-top-color: #4a9eff;
+		border-radius: 50%;
+		animation: spin 0.6s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 
 	.no-results {
