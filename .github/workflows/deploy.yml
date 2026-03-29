@@ -51,7 +51,9 @@ jobs:
           done
 
       - name: Build database
-        run: ./target/release/dril-builder data/ site/vendor/dril.db
+        run: |
+          mkdir -p site/vendor
+          ./target/release/dril-builder data/ site/vendor/dril.db
 
       - name: Copy SQLite WASM runtime
         run: |
