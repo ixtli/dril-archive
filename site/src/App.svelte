@@ -50,7 +50,7 @@
 			results = [];
 			return;
 		}
-		debouncedSearch(value, sort, filters, (r) => {
+		debouncedSearch(value, sort, filters, true, (r) => {
 			results = r;
 		});
 	}
@@ -61,7 +61,7 @@
 
 	function rerunSearch() {
 		if (!query.trim()) return;
-		debouncedSearch(query, sort, filters, (r) => {
+		debouncedSearch(query, sort, filters, true, (r) => {
 			results = r;
 		});
 	}

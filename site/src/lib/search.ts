@@ -23,18 +23,18 @@ export function postUrl(platform: string, id: string): string {
 	}
 }
 
-function buildSortClause(sort: SortOption): string {
+function buildSortClause(sort: SortOption, hasUnion: boolean): string {
 	switch (sort) {
 		case "relevance":
-			return "ORDER BY rank";
+			return hasUnion ? "ORDER BY created_at DESC" : "ORDER BY rank";
 		case "newest":
-			return "ORDER BY t.created_at DESC";
+			return hasUnion ? "ORDER BY created_at DESC" : "ORDER BY t.created_at DESC";
 		case "oldest":
-			return "ORDER BY t.created_at ASC";
+			return hasUnion ? "ORDER BY created_at ASC" : "ORDER BY t.created_at ASC";
 		case "most-liked":
-			return "ORDER BY t.likes DESC";
+			return hasUnion ? "ORDER BY likes DESC" : "ORDER BY t.likes DESC";
 		case "most-shared":
-			return "ORDER BY t.shares DESC";
+			return hasUnion ? "ORDER BY shares DESC" : "ORDER BY t.shares DESC";
 	}
 }
 
@@ -74,7 +74,12 @@ function parseMediaJson(raw: string | null): MediaItem[] {
 	}
 }
 
-export function executeSearch(input: string, sort: SortOption, filters: FilterState): Post[] {
+export function executeSearch(
+	input: string,
+	sort: SortOption,
+	filters: FilterState,
+	includeRetweets: boolean = true,
+): Post[] {
 	const db = getDb();
 	if (!db) return [];
 
@@ -82,26 +87,51 @@ export function executeSearch(input: string, sort: SortOption, filters: FilterSt
 	if (!ftsQuery) return [];
 
 	const { clauses, params } = buildFilterClauses(filters);
-	const sortClause = buildSortClause(sort);
 	const filterSql = clauses.join("\n    ");
 
-	const sql = `
+	const postsArm = `
     SELECT t.id, t.text, t.created_at, t.is_reply, t.reply_to_user,
            t.is_quote, t.quoted_text, t.likes, t.shares, t.platform,
            (SELECT json_group_array(json_object(
              'type', m.type, 'url', m.url,
              'width', m.width, 'height', m.height,
              'alt_text', m.alt_text
-           )) FROM media m WHERE m.post_id = t.id) AS media_json
+           )) FROM media m WHERE m.post_id = t.id) AS media_json,
+           0 AS is_repost, NULL AS original_user_id
     FROM posts_fts f
     JOIN posts t ON t.rowid = f.rowid
     WHERE posts_fts MATCH ?
-    ${filterSql}
-    ${sortClause}
-    LIMIT 50
-  `;
+    ${filterSql}`;
 
-	const allParams = [ftsQuery, ...params];
+	let sql: string;
+	let allParams: unknown[];
+
+	if (includeRetweets) {
+		const sortClause = buildSortClause(sort, true);
+		const likePattern = `%${input.trim().replace(/%/g, "\\%")}%`;
+		sql = `
+      SELECT * FROM (
+        ${postsArm}
+        UNION ALL
+        SELECT r.id, r.original_text AS text,
+               COALESCE(r.original_created_at, r.created_at) AS created_at,
+               0 AS is_reply, NULL AS reply_to_user,
+               0 AS is_quote, NULL AS quoted_text,
+               r.likes, r.shares, r.platform,
+               '[]' AS media_json,
+               1 AS is_repost, r.original_user_id
+        FROM reposts r
+        WHERE r.original_text LIKE ? ESCAPE '\\'
+      )
+      ${sortClause}
+      LIMIT 50
+    `;
+		allParams = [ftsQuery, ...params, likePattern];
+	} else {
+		const sortClause = buildSortClause(sort, false);
+		sql = `${postsArm} ${sortClause} LIMIT 50`;
+		allParams = [ftsQuery, ...params];
+	}
 
 	try {
 		const stmt = db.prepare(sql);
@@ -122,8 +152,8 @@ export function executeSearch(input: string, sort: SortOption, filters: FilterSt
 					shares: row[8] as number,
 					platform: row[9] as string,
 					media: parseMediaJson(row[10] as string | null),
-					is_repost: false,
-					original_user_id: null,
+					is_repost: Boolean(row[11]),
+					original_user_id: row[12] as string | null,
 				});
 			}
 			return results;
@@ -142,11 +172,12 @@ export function debouncedSearch(
 	input: string,
 	sort: SortOption,
 	filters: FilterState,
+	includeRetweets: boolean,
 	callback: (results: Post[]) => void,
 	delay: number = 120,
 ): void {
 	if (debounceTimer) clearTimeout(debounceTimer);
 	debounceTimer = setTimeout(() => {
-		callback(executeSearch(input, sort, filters));
+		callback(executeSearch(input, sort, filters, includeRetweets));
 	}, delay);
 }
