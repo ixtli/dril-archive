@@ -227,4 +227,62 @@ test.describe("dril archive search", () => {
 		const viewportWidth = await page.evaluate(() => window.innerWidth);
 		expect(bodyWidth).toBeLessThanOrEqual(viewportWidth);
 	});
+
+	test("repost renders with retweet banner", async ({ page }) => {
+		await page.goto("/");
+		const results = await searchFor(page, "moon");
+		const cards = results.locator('[data-testid="post-card"]');
+		await expect(cards).toHaveCount(1);
+		const banner = results.locator('[data-testid="repost-banner"]');
+		await expect(banner).toBeVisible();
+		await expect(banner).toContainText("@dril retweeted");
+	});
+
+	test("retweets toggle excludes reposts", async ({ page }) => {
+		await page.goto("/");
+		await waitForReady(page);
+
+		// Search for "moon" - should find the repost
+		const searchInput = page.locator('[data-testid="search-input"]');
+		await searchInput.fill("moon");
+		const results = page.locator('[data-testid="results"]');
+		await expect(results.locator('[data-testid="post-card"]')).toHaveCount(1, {
+			timeout: 5_000,
+		});
+
+		// Open controls and uncheck retweets
+		await page.locator('[data-testid="controls-toggle"]').click();
+		await page.locator('[data-testid="retweets-toggle"]').uncheck();
+
+		// Repost should disappear
+		await expect(results.locator('[data-testid="post-card"]')).toHaveCount(0, {
+			timeout: 5_000,
+		});
+		await expect(results).toContainText("no results");
+	});
+
+	test("media placeholder appears on post with media", async ({ page }) => {
+		await page.goto("/");
+		// Post id=3 (zoo) has an attached image
+		const results = await searchFor(page, "zoo");
+		const cards = results.locator('[data-testid="post-card"]');
+		await expect(cards).toHaveCount(1);
+		const media = results.locator('[data-testid="media-placeholder"]');
+		await expect(media).toBeVisible();
+		await expect(media).toContainText("1 image attached");
+	});
+
+	test("media placeholder click-to-load shows image or error", async ({ page }) => {
+		await page.goto("/");
+		const results = await searchFor(page, "zoo");
+		const media = results.locator('[data-testid="media-placeholder"]');
+
+		// Click to load
+		await media.locator("button").click();
+
+		// Should transition to either loaded (img) or error state
+		// Since the URL is fake, expect error
+		const errorOrImg = media.locator(".media-error, img");
+		await expect(errorOrImg).toBeVisible({ timeout: 10_000 });
+	});
 });
