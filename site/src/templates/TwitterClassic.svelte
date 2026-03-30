@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Post } from "../lib/types";
-	import MediaPlaceholder from "../components/MediaPlaceholder.svelte";
+	import { formatPostDate, resolveDisplayName, resolveHandle } from "../lib/format";
+	import PostCardLayout from "../components/PostCardLayout.svelte";
 
 	interface Props {
 		post: Post;
@@ -8,69 +9,30 @@
 
 	let { post }: Props = $props();
 
-	let formattedDate = $derived(
-		new Date(post.created_at).toLocaleDateString("en-US", {
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-		}),
-	);
+	let formattedDate = $derived(formatPostDate(post.created_at));
 </script>
 
-<article class="twitter-classic-card">
-	{#if post.is_reply && post.reply_to_user}
-		<div class="reply-context">
-			<span class="reply-icon">&#8617;</span> replying to @{post.reply_to_user}
-		</div>
-	{/if}
-
-	{#if post.is_repost}
-		<div class="repost-banner" data-testid="repost-banner">
-			<span class="repost-icon">&#8635;</span> @dril retweeted
-		</div>
-	{/if}
-
-	<div class="card-layout">
-		<div class="avatar-col">
-			<img
-				class="avatar"
-				src="{import.meta.env.BASE_URL}avatars/bigger.jpg"
-				alt="@dril avatar"
-				width="73"
-				height="73"
-			/>
-		</div>
-		<div class="content-col">
-			<div class="header">
-				<span class="display-name"
-					>{post.is_repost && post.original_user_name ? post.original_user_name : "wint"}</span
-				>
-				<span class="handle"
-					>@{post.is_repost && post.original_user_screen_name
-						? post.original_user_screen_name
-						: "dril"}</span
-				>
-			</div>
-			<div class="text">{post.text}</div>
-			{#if post.is_quote && post.quoted_text}
-				<div class="quoted">
-					<div class="quoted-text">{post.quoted_text}</div>
-				</div>
-			{/if}
-			{#if post.media.length > 0}
-				<MediaPlaceholder media={post.media} />
-			{/if}
-			<div class="engagement">
-				<span class="engagement-item">{post.likes.toLocaleString()} likes</span>
-				<span class="engagement-item">{post.shares.toLocaleString()} shares</span>
-				<span class="engagement-item">{formattedDate}</span>
-			</div>
-		</div>
-	</div>
-</article>
+<PostCardLayout
+	{post}
+	cardClass="twitter-classic-card"
+	avatarSrc="{import.meta.env.BASE_URL}avatars/bigger.jpg"
+	avatarSize={73}
+	replyLabel="replying to"
+	replyIcon="&#8617;"
+>
+	{#snippet header()}
+		<span class="display-name">{resolveDisplayName(post)}</span>
+		<span class="handle">@{resolveHandle(post)}</span>
+	{/snippet}
+	{#snippet engagement()}
+		<span class="engagement-item">{post.likes.toLocaleString()} likes</span>
+		<span class="engagement-item">{post.shares.toLocaleString()} shares</span>
+		<span class="engagement-item">{formattedDate}</span>
+	{/snippet}
+</PostCardLayout>
 
 <style>
-	.twitter-classic-card {
+	:global(.twitter-classic-card) {
 		background: rgba(255, 255, 255, 0.98);
 		border: 1px solid #cccccc;
 		border-radius: 5px;
@@ -80,39 +42,28 @@
 		margin-bottom: 8px;
 	}
 
-	.reply-context {
+	:global(.twitter-classic-card .reply-context) {
 		color: #999;
 		font-size: 11px;
 		margin-bottom: 6px;
 		padding-left: 83px;
 	}
 
-	.reply-icon {
+	:global(.twitter-classic-card .reply-icon) {
 		font-size: 10px;
 	}
 
-	.card-layout {
-		display: flex;
+	:global(.twitter-classic-card .card-layout) {
 		gap: 10px;
 	}
 
-	.avatar-col {
-		flex-shrink: 0;
-	}
-
-	.avatar {
+	:global(.twitter-classic-card .avatar) {
 		width: 73px;
 		height: 73px;
 		border-radius: 4px;
-		display: block;
 	}
 
-	.content-col {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.header {
+	:global(.twitter-classic-card .header) {
 		margin-bottom: 2px;
 	}
 
@@ -128,28 +79,26 @@
 		margin-left: 4px;
 	}
 
-	.text {
+	:global(.twitter-classic-card .text) {
 		font-size: 13px;
 		line-height: 24px;
 		color: rgb(55, 58, 61);
-		white-space: pre-wrap;
-		word-wrap: break-word;
 	}
 
-	.quoted {
+	:global(.twitter-classic-card .quoted) {
 		border: 1px solid #999;
 		border-radius: 5px;
 		padding: 8px 12px;
 		margin-top: 8px;
 	}
 
-	.quoted-text {
+	:global(.twitter-classic-card .quoted-text) {
 		font-size: 12px;
 		line-height: 18px;
 		color: #666;
 	}
 
-	.engagement {
+	:global(.twitter-classic-card .engagement) {
 		margin-top: 4px;
 		font-size: 11px;
 		color: #999;
@@ -158,18 +107,21 @@
 	}
 
 	@media (max-width: 639px) {
-		.engagement {
+		.handle {
+			font-size: 10px;
+		}
+		:global(.twitter-classic-card .engagement) {
 			font-size: 10px;
 		}
 	}
 
-	.repost-banner {
+	:global(.twitter-classic-card .repost-banner) {
 		font-size: 11px;
 		color: #999;
 		padding: 0 0 4px 83px;
 	}
 
-	.repost-icon {
+	:global(.twitter-classic-card .repost-icon) {
 		font-size: 10px;
 	}
 </style>

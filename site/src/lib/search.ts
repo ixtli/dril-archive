@@ -1,4 +1,6 @@
-export function postUrl(platform: string, id: string): string {
+import type { Platform } from "./types";
+
+export function postUrl(platform: Platform, id: string): string {
 	switch (platform) {
 		case "threads":
 			return `https://www.threads.com/@dril/post/${id}`;

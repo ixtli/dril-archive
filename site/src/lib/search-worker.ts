@@ -1,7 +1,18 @@
-import type { SortOption, FilterState, Post, MediaItem } from "./types";
+import type { SortOption, FilterState, Post, MediaItem, Platform, WorkerResponse } from "./types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let db: any = null;
+
+/** Canonical mapping from PlatformFilter values to database platform column values */
+const PLATFORM_DB_MAP: Record<Platform, string> = {
+	x: "x",
+	bsky: "bsky",
+	threads: "threads",
+};
+
+function postResponse(msg: WorkerResponse) {
+	self.postMessage(msg);
+}
 
 // prettier-ignore
 type WorkerMessage =
@@ -33,7 +44,7 @@ async function handleInit(sqliteUrl: string, dbUrl: string) {
 
 		const contentLength = response.headers.get("Content-Length");
 		if (!contentLength || !response.body) {
-			self.postMessage({
+			postResponse({
 				type: "progress",
 				received: 0,
 				total: 0,
@@ -56,7 +67,7 @@ async function handleInit(sqliteUrl: string, dbUrl: string) {
 			if (done || !value) break;
 			chunks.push(value);
 			received += value.length;
-			self.postMessage({
+			postResponse({
 				type: "progress",
 				received,
 				total,
@@ -73,7 +84,7 @@ async function handleInit(sqliteUrl: string, dbUrl: string) {
 
 		await initSqlite(result, sqliteUrl);
 	} catch (err) {
-		self.postMessage({
+		postResponse({
 			type: "error",
 			message: err instanceof Error ? err.message : String(err),
 		});
@@ -81,7 +92,7 @@ async function handleInit(sqliteUrl: string, dbUrl: string) {
 }
 
 async function initSqlite(dbData: Uint8Array, sqliteUrl: string) {
-	self.postMessage({
+	postResponse({
 		type: "progress",
 		received: dbData.length,
 		total: dbData.length,
@@ -95,7 +106,7 @@ async function initSqlite(dbData: Uint8Array, sqliteUrl: string) {
 	sqlite3.capi.sqlite3_js_posix_create_file("/dril.db", dbData);
 	db = new sqlite3.oo1.DB("/dril.db", "r");
 
-	self.postMessage({ type: "ready" });
+	postResponse({ type: "ready" });
 }
 
 function buildFtsQuery(input: string): string {
@@ -132,13 +143,8 @@ function buildFilterClauses(filters: FilterState): {
 	const params: unknown[] = [];
 
 	if (filters.platform !== "all") {
-		const platformMap: Record<string, string> = {
-			x: "x",
-			bsky: "bsky",
-			threads: "threads",
-		};
 		clauses.push("AND t.platform = ?");
-		params.push(platformMap[filters.platform]);
+		params.push(PLATFORM_DB_MAP[filters.platform]);
 	}
 
 	if (filters.type === "original") {
@@ -171,13 +177,13 @@ function handleSearch(
 	includeRetweets: boolean,
 ) {
 	if (!db) {
-		self.postMessage({ type: "results", id, results: [] });
+		postResponse({ type: "results", id, results: [], totalCount: 0 });
 		return;
 	}
 
 	const ftsQuery = buildFtsQuery(input);
 	if (!ftsQuery) {
-		self.postMessage({ type: "results", id, results: [] });
+		postResponse({ type: "results", id, results: [], totalCount: 0 });
 		return;
 	}
 
@@ -249,7 +255,7 @@ function handleSearch(
 					quoted_text: row[6] as string | null,
 					likes: row[7] as number,
 					shares: row[8] as number,
-					platform: row[9] as string,
+					platform: row[9] as Platform,
 					media: parseMediaJson(row[10] as string | null),
 					is_repost: Boolean(row[11]),
 					original_user_id: row[12] as string | null,
@@ -257,7 +263,7 @@ function handleSearch(
 					original_user_name: row[14] as string | null,
 				});
 			}
-			self.postMessage({
+			postResponse({
 				type: "results",
 				id,
 				results,
@@ -268,7 +274,7 @@ function handleSearch(
 		}
 	} catch (err) {
 		console.error("Search error:", err);
-		self.postMessage({ type: "results", id, results: [], totalCount: 0 });
+		postResponse({ type: "results", id, results: [], totalCount: 0 });
 	}
 }
 
@@ -282,17 +288,14 @@ function getTotalCount(filters: FilterState, includeRetweets: boolean): number {
 	const allParams = [...params];
 
 	if (includeRetweets) {
-		// Add repost count with same platform filter if applicable
+		// Add repost count with platform filter only.
+		// Type filters (original/replies/quotes) are intentionally omitted for reposts
+		// because the reposts table lacks is_reply/is_quote columns.
 		let repostFilter = "";
 		const repostParams: unknown[] = [];
 		if (filters.platform !== "all") {
-			const platformMap: Record<string, string> = {
-				x: "x",
-				bsky: "bsky",
-				threads: "threads",
-			};
 			repostFilter = "WHERE r.platform = ?";
-			repostParams.push(platformMap[filters.platform]);
+			repostParams.push(PLATFORM_DB_MAP[filters.platform]);
 		}
 		sql = `SELECT (${sql}) + (SELECT COUNT(*) FROM reposts r ${repostFilter})`;
 		allParams.push(...repostParams);

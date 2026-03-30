@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Post } from "../lib/types";
-	import MediaPlaceholder from "../components/MediaPlaceholder.svelte";
+	import { formatPostDate, resolveDisplayName, resolveHandle } from "../lib/format";
+	import PostCardLayout from "../components/PostCardLayout.svelte";
 
 	interface Props {
 		post: Post;
@@ -8,70 +9,31 @@
 
 	let { post }: Props = $props();
 
-	let formattedDate = $derived(
-		new Date(post.created_at).toLocaleDateString("en-US", {
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-		}),
-	);
+	let formattedDate = $derived(formatPostDate(post.created_at));
 </script>
 
-<article class="bluesky-card">
-	{#if post.is_reply && post.reply_to_user}
-		<div class="reply-context">
-			Reply to @{post.reply_to_user}
-		</div>
-	{/if}
-
-	{#if post.is_repost}
-		<div class="repost-banner" data-testid="repost-banner">
-			<span class="repost-icon">&#8635;</span> @dril retweeted
-		</div>
-	{/if}
-
-	<div class="card-layout">
-		<div class="avatar-col">
-			<img
-				class="avatar"
-				src="{import.meta.env.BASE_URL}avatars/normal.jpeg"
-				alt="@dril avatar"
-				width="48"
-				height="48"
-			/>
-		</div>
-		<div class="content-col">
-			<div class="header">
-				<span class="display-name"
-					>{post.is_repost && post.original_user_name ? post.original_user_name : "wint"}</span
-				>
-				<span class="handle"
-					>@{post.is_repost && post.original_user_screen_name
-						? post.original_user_screen_name
-						: "dril.bsky.social"}</span
-				>
-				<span class="separator">&middot;</span>
-				<span class="timestamp">{formattedDate}</span>
-			</div>
-			<div class="text">{post.text}</div>
-			{#if post.is_quote && post.quoted_text}
-				<div class="quoted">
-					<div class="quoted-text">{post.quoted_text}</div>
-				</div>
-			{/if}
-			{#if post.media.length > 0}
-				<MediaPlaceholder media={post.media} />
-			{/if}
-			<div class="engagement">
-				<span class="engagement-item">{post.likes.toLocaleString()} likes</span>
-				<span class="engagement-item">{post.shares.toLocaleString()} reposts</span>
-			</div>
-		</div>
-	</div>
-</article>
+<PostCardLayout
+	{post}
+	cardClass="bluesky-card"
+	avatarSrc="{import.meta.env.BASE_URL}avatars/normal.jpeg"
+	avatarSize={48}
+	repostLabel="reposted"
+	replyLabel="Reply to"
+>
+	{#snippet header()}
+		<span class="display-name">{resolveDisplayName(post)}</span>
+		<span class="handle">@{resolveHandle(post, "dril.bsky.social")}</span>
+		<span class="separator">&middot;</span>
+		<span class="timestamp">{formattedDate}</span>
+	{/snippet}
+	{#snippet engagement()}
+		<span class="engagement-item">{post.likes.toLocaleString()} likes</span>
+		<span class="engagement-item">{post.shares.toLocaleString()} reposts</span>
+	{/snippet}
+</PostCardLayout>
 
 <style>
-	.bluesky-card {
+	:global(.bluesky-card) {
 		background: #fff;
 		border: 1px solid #e4e6eb;
 		border-radius: 12px;
@@ -81,35 +43,24 @@
 		margin-bottom: 8px;
 	}
 
-	.reply-context {
+	:global(.bluesky-card .reply-context) {
 		color: #8a8a8a;
 		font-size: 13px;
 		margin-bottom: 4px;
 		padding-left: 52px;
 	}
 
-	.card-layout {
-		display: flex;
+	:global(.bluesky-card .card-layout) {
 		gap: 10px;
 	}
 
-	.avatar-col {
-		flex-shrink: 0;
-	}
-
-	.avatar {
+	:global(.bluesky-card .avatar) {
 		width: 42px;
 		height: 42px;
 		border-radius: 50%;
-		display: block;
 	}
 
-	.content-col {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.header {
+	:global(.bluesky-card .header) {
 		display: flex;
 		align-items: baseline;
 		gap: 4px;
@@ -137,14 +88,12 @@
 		font-size: 13px;
 	}
 
-	.text {
+	:global(.bluesky-card .text) {
 		font-size: 15px;
 		line-height: 21px;
-		white-space: pre-wrap;
-		word-wrap: break-word;
 	}
 
-	.quoted {
+	:global(.bluesky-card .quoted) {
 		border: 1px solid #d6d6d6;
 		border-radius: 8px;
 		padding: 10px 12px;
@@ -152,13 +101,13 @@
 		background: #f9f9f9;
 	}
 
-	.quoted-text {
+	:global(.bluesky-card .quoted-text) {
 		font-size: 14px;
 		line-height: 19px;
 		color: #555;
 	}
 
-	.engagement {
+	:global(.bluesky-card .engagement) {
 		margin-top: 8px;
 		font-size: 13px;
 		color: #8a8a8a;
@@ -169,19 +118,21 @@
 	@media (max-width: 639px) {
 		.handle,
 		.separator,
-		.timestamp,
-		.engagement {
+		.timestamp {
+			font-size: 12px;
+		}
+		:global(.bluesky-card .engagement) {
 			font-size: 12px;
 		}
 	}
 
-	.repost-banner {
+	:global(.bluesky-card .repost-banner) {
 		font-size: 13px;
 		color: #8a8a8a;
 		padding: 0 0 4px 52px;
 	}
 
-	.repost-icon {
+	:global(.bluesky-card .repost-icon) {
 		font-size: 12px;
 	}
 </style>

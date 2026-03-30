@@ -1,4 +1,4 @@
-import type { Post, SortOption, FilterState } from "./types";
+import type { Post, SortOption, FilterState, WorkerResponse } from "./types";
 
 type ProgressCallback = (received: number, total: number, phase: string) => void;
 
@@ -14,7 +14,7 @@ export async function initDb(onProgress: ProgressCallback): Promise<void> {
 			type: "module",
 		});
 
-		worker.onmessage = (e) => {
+		worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
 			const msg = e.data;
 			if (msg.type === "progress") {
 				onProgress(msg.received, msg.total, msg.phase);
@@ -40,7 +40,8 @@ export interface SearchResult {
 	totalCount: number;
 }
 
-function handleSearchMessage(e: MessageEvent) {
+// SearchResult corresponds to the "results" variant of WorkerResponse
+function handleSearchMessage(e: MessageEvent<WorkerResponse>) {
 	const msg = e.data;
 	if (msg.type === "results" && msg.id === pendingSearchId && pendingSearchResolve) {
 		pendingSearchResolve({ results: msg.results, totalCount: msg.totalCount });
