@@ -6,14 +6,14 @@
 
 body {
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
-	background: #1a1a1a;
-	color: #e0e0e0;
+	background: var(--shell-bg);
+	color: var(--shell-text);
 	min-height: 100vh;
 }
 
 /* Focus visible for keyboard navigation */
 :focus-visible {
-	outline: 2px solid #4a9eff;
+	outline: 2px solid var(--shell-accent);
 	outline-offset: 2px;
 }
 
@@ -23,11 +23,11 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-	background: #1a1a1a;
+	background: var(--shell-bg);
 }
 
 ::-webkit-scrollbar-thumb {
-	background: #444;
+	background: var(--shell-input-border);
 	border-radius: 4px;
 }
 

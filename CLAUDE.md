@@ -33,7 +33,7 @@ site/              Svelte + Vite frontend (the deployable artifact)
     components/    UI components (SearchBar, Controls, PostCard, LoadingBar)
     templates/     Era-themed post templates (TwitterClassic, TwitterModern, Bluesky, etc.)
     lib/           Core logic (db.ts, search.ts, themes.ts, types.ts)
-    styles/        Per-era CSS (twitter-classic.css, twitter-modern.css, bluesky.css, etc.)
+    styles/        Global CSS variables (global.css)
   vendor/          SQLite WASM + DB files (served via Vite middleware, gitignored)
 theme-extractor/   Wayback Machine extraction tooling (standalone)
   src/lib/         Reusable core: CDX client, page loader, rate limiter, progress tracker

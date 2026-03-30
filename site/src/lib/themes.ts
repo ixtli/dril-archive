@@ -1,6 +1,6 @@
-import type { ThemeId } from "./types";
+import type { Platform, ThemeId } from "./types";
 
-export function getAutoTheme(platform: string, createdAt: string): ThemeId {
+export function getAutoTheme(platform: Platform, createdAt: string): ThemeId {
 	if (platform === "bsky") return "bsky";
 	if (platform === "threads") return "threads";
 	const d = new Date(createdAt);
@@ -11,7 +11,7 @@ export function getAutoTheme(platform: string, createdAt: string): ThemeId {
 }
 
 export function resolveTheme(
-	platform: string,
+	platform: Platform,
 	createdAt: string,
 	override: ThemeId | "auto",
 ): ThemeId {
@@ -29,12 +29,4 @@ export const THEME_LABELS: Record<ThemeId | "auto", string> = {
 	threads: "Threads",
 };
 
-export const ALL_THEMES: (ThemeId | "auto")[] = [
-	"auto",
-	"twitter-classic",
-	"twitter-new",
-	"twitter-material",
-	"twitter-modern",
-	"bsky",
-	"threads",
-];
+export const ALL_THEMES = Object.keys(THEME_LABELS) as (ThemeId | "auto")[];

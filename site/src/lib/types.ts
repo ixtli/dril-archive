@@ -8,7 +8,8 @@ export type ThemeId =
 
 export type SortOption = "relevance" | "newest" | "oldest" | "most-liked" | "most-shared";
 
-export type PlatformFilter = "all" | "x" | "bsky" | "threads";
+export type Platform = "x" | "bsky" | "threads";
+export type PlatformFilter = "all" | Platform;
 
 export type TypeFilter = "all" | "original" | "replies" | "quotes";
 
@@ -35,7 +36,7 @@ export interface Post {
 	quoted_text: string | null;
 	likes: number;
 	shares: number;
-	platform: string;
+	platform: Platform;
 	media: MediaItem[];
 	is_repost: boolean;
 	original_user_id: string | null;
@@ -49,3 +50,9 @@ export interface SearchState {
 	filters: FilterState;
 	themeOverride: ThemeId | "auto";
 }
+
+export type WorkerResponse =
+	| { type: "progress"; received: number; total: number; phase: string }
+	| { type: "ready" }
+	| { type: "error"; message: string }
+	| { type: "results"; id: number; results: Post[]; totalCount: number };
